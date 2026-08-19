@@ -1,113 +1,12 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Quiz Master Platform</title>
-  <link rel="stylesheet" href="styles.css" />
-</head>
-<body>
-  <div class="app-shell">
-    <header class="hero">
-      <p class="eyebrow">Quiz Master Platform</p>
-      <h1>Interactive Online Quiz System</h1>
-      <p class="hero-copy">
-        Test your knowledge across categories, choose a difficulty level, and track your score as you play.
-      </p>
-    </header>
-
-    <main class="layout">
-      <section class="card setup-card" aria-labelledby="quiz-setup-title">
-        <div class="section-heading">
-          <h2 id="quiz-setup-title">Quiz Setup</h2>
-          <p>Select your quiz preferences before starting.</p>
-        </div>
-
-        <form class="setup-form" id="quiz-setup-form">
-          <label>
-            Player Name
-            <input id="player-name" name="playerName" type="text" maxlength="20" placeholder="Enter your name" value="Player" required />
-          </label>
-
-          <label>
-            Category
-            <select id="category-select" name="category">
-              <option value="general">General Knowledge</option>
-              <option value="science">Science</option>
-              <option value="technology">Technology</option>
-              <option value="sports">Sports</option>
-              <option value="history">History</option>
-              <option value="geography">Geography</option>
-              <option value="entertainment">Entertainment</option>
-            </select>
-          </label>
-
-          <label>
-            Difficulty
-            <select id="difficulty-select" name="difficulty">
-              <option value="easy">Easy</option>
-              <option value="medium">Medium</option>
-              <option value="hard">Hard</option>
-            </select>
-          </label>
-
-          <label>
-            Number of Questions
-            <input id="question-count" name="questionCount" type="number" min="5" max="20" value="10" required />
-          </label>
-
-          <button type="submit" class="primary-btn">Start Quiz</button>
-        </form>
-      </section>
-
-      <section class="card quiz-card" aria-labelledby="quiz-area-title">
-        <div class="section-heading row">
-          <div>
-            <h2 id="quiz-area-title">Quiz Area</h2>
-            <p>Answer each question before the countdown ends.</p>
-          </div>
-          <div class="timer-pill" id="timer-pill" aria-live="polite">Timer: 00:00</div>
-        </div>
-
-        <div class="quiz-placeholder" id="quiz-placeholder">
-          <h3>Your quiz will load here</h3>
-          <p>Choose your settings and press Start Quiz to begin.</p>
-        </div>
-
-        <div class="question-panel" id="question-panel" hidden>
-          <p class="question-progress" id="question-progress">Question 1 of 10</p>
-          <h3 id="question-text">Question text appears here</h3>
-          <div class="options-list" id="options-list"></div>
-          <div class="quiz-actions">
-            <button type="button" class="secondary-btn" id="prev-question-btn">Previous</button>
-            <button type="button" class="secondary-btn" id="next-question-btn">Next</button>
-            <button type="button" class="primary-btn" id="submit-quiz-btn">Submit Quiz</button>
-          </div>
-        </div>
-      </section>
-
-      <section class="card results-card" aria-labelledby="results-title">
-        <div class="section-heading">
-          <h2 id="results-title">Results</h2>
-          <p>Score summary and review will appear after the quiz.</p>
-        </div>
-        <div class="results-placeholder" id="results-container">
-          <p>No results yet. Complete a quiz to see your performance.</p>
-        </div>
-      </section>
-
-      <section class="card leaderboard-card" aria-labelledby="leaderboard-title">
-        <div class="section-heading">
-          <h2 id="leaderboard-title">Leaderboard</h2>
-          <p>High scores are stored locally on this device.</p>
-        </div>
-        <ol class="leaderboard-list" id="leaderboard-list">
-          <li>Start a quiz to create a score entry.</li>
-        </ol>
-      </section>
-    </main>
-  </div>
-
-  <script src="script.js"></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quiz Master Platform</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
 </html>
