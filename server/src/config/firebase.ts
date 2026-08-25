@@ -17,7 +17,9 @@ export function initFirebase(): { app: App | null; auth: Auth | null } {
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
   const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
 
-  if (projectId && clientEmail && privateKey) {
+  const isValidPrivateKey = privateKey && privateKey.includes('-----BEGIN PRIVATE KEY-----');
+
+  if (projectId && clientEmail && isValidPrivateKey) {
     try {
       firebaseApp = initializeApp({
         credential: cert({
@@ -33,7 +35,7 @@ export function initFirebase(): { app: App | null; auth: Auth | null } {
       console.error('❌ Firebase Initialization Error:', error);
     }
   } else {
-    console.warn('⚠️  Firebase Admin credentials missing in process.env. Auth fallback mode enabled.');
+    console.warn('⚠️  Firebase Admin credentials missing or invalid in process.env. Auth fallback mode enabled.');
   }
 
   return { app: firebaseApp, auth: firebaseAuth };

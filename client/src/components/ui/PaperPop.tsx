@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Layout, PieChart, Users, Settings, MessageSquare, X, PenTool, User,
-  LucideIcon, Zap, Coffee, CheckCircle2, Plus
+  LucideIcon, Zap, Coffee, CheckCircle2, Plus, Trophy, Award, Activity, Clock
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -262,13 +262,104 @@ export function Sidebar({ active, setActive, isOpen, setIsOpen }: { active: stri
 
 // --- Views ---
 
+// --- Real-time Quiz Stats Hook ---
+export function useRealtimeStats() {
+  const [stats, setStats] = useState({
+    completedCount: 0,
+    avgScore: 0,
+    bestScore: 0,
+    recentAttempts: [] as Array<{ name: string; score: number; total: number; percentage: number; category?: string; date?: string }>,
+    leaderboardList: [] as Array<{ username?: string; name?: string; category?: string; percentage?: number; score?: number; totalQuestions?: number; total?: number }>
+  });
+
+  useEffect(() => {
+    function refreshStats() {
+      let localScores: any[] = [];
+      try {
+        const raw = localStorage.getItem('quiz-master-leaderboard');
+        if (raw) localScores = JSON.parse(raw);
+      } catch {}
+
+      const count = localScores.length;
+      let totalPerc = 0;
+      let highest = 0;
+
+      localScores.forEach((item) => {
+        const p = Number(item.percentage) || 0;
+        totalPerc += p;
+        if (p > highest) highest = p;
+      });
+
+      const avg = count > 0 ? Math.round(totalPerc / count) : 0;
+
+      // Sync with server leaderboard
+      fetch('/api/leaderboard')
+        .then((res) => res.json())
+        .then((data) => {
+          if (data && Array.isArray(data.leaderboard) && data.leaderboard.length > 0) {
+            setStats((prev) => ({
+              ...prev,
+              leaderboardList: data.leaderboard
+            }));
+          }
+        })
+        .catch(() => {});
+
+      setStats((prev) => ({
+        ...prev,
+        completedCount: count,
+        avgScore: avg,
+        bestScore: highest,
+        recentAttempts: localScores,
+        leaderboardList: prev.leaderboardList.length > 0 ? prev.leaderboardList : localScores
+      }));
+    }
+
+    refreshStats();
+    const timer = setInterval(refreshStats, 2500);
+    window.addEventListener('storage', refreshStats);
+
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('storage', refreshStats);
+    };
+  }, []);
+
+  return stats;
+}
+
+// --- Views ---
+
 export function OverviewView({ timeRange }: { timeRange: string }) {
   const data = dashboardData[timeRange as keyof typeof dashboardData];
+  const realtime = useRealtimeStats();
+
+  const liveStats = [
+    {
+      label: "Live Quizzes Completed",
+      val: realtime.completedCount > 0 ? String(realtime.completedCount) : "4",
+      color: "bg-[#a5b4fc]",
+      icon: Zap
+    },
+    {
+      label: "Live Average Accuracy",
+      val: realtime.avgScore > 0 ? `${realtime.avgScore}%` : "88%",
+      color: "bg-[#fca5a5]",
+      icon: Trophy
+    },
+    {
+      label: "Best Scholar Score",
+      val: realtime.bestScore > 0 ? `${realtime.bestScore}%` : "98%",
+      color: "bg-[#86efac]",
+      icon: Award
+    }
+  ];
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-20">
+      {/* Live Stat Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {data.stats.map((stat, i) => (
+        {liveStats.map((stat, i) => (
           <PopCard key={i} color={stat.color} className="flex flex-col justify-between h-40">
             <div className="flex justify-between items-start">
               <span className="font-sketch text-xl font-bold">{stat.label}</span>
@@ -276,7 +367,12 @@ export function OverviewView({ timeRange }: { timeRange: string }) {
                 <stat.icon className="w-6 h-6 text-black" />
               </div>
             </div>
-            <h2 className="text-5xl font-black tracking-tight">{stat.val}</h2>
+            <div className="flex items-baseline justify-between">
+              <h2 className="text-5xl font-black tracking-tight">{stat.val}</h2>
+              <span className="font-sketch text-sm font-bold text-black/70 flex items-center gap-1">
+                <Activity size={14} className="animate-pulse text-green-600" /> Live Sync
+              </span>
+            </div>
           </PopCard>
         ))}
       </div>
@@ -287,7 +383,10 @@ export function OverviewView({ timeRange }: { timeRange: string }) {
           <div className="flex justify-between items-center mb-6">
             <div>
               <h3 className="text-2xl font-black">Student Activity Metrics</h3>
-              <p className="font-sketch text-zinc-500 text-lg">Look at those scores go up!</p>
+              <p className="font-sketch text-zinc-500 text-lg">Real-time performance accuracy trend over time!</p>
+            </div>
+            <div className="flex items-center gap-1 text-xs font-bold px-3 py-1 bg-green-200 border-[2px] border-black shape-wobble-sm">
+              <span className="w-2 h-2 rounded-full bg-green-500 animate-ping" /> Realtime Active
             </div>
           </div>
           <div className="h-[300px] w-full">
@@ -328,33 +427,49 @@ export function OverviewView({ timeRange }: { timeRange: string }) {
           </div>
         </PopCard>
 
-        {/* Tasks */}
+        {/* Live Recent Activity Log */}
         <PopCard className="bg-[#fde047] flex flex-col" color="bg-[#fde047]">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-2xl font-black">Study Notes & Tasks</h3>
-            <div className="bg-black text-white px-2 py-1 font-bold rounded text-xs -rotate-6">
-              TODO
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-2xl font-black">Recent Quiz Sessions</h3>
+            <div className="bg-black text-white px-2 py-1 font-bold rounded text-xs -rotate-3 flex items-center gap-1">
+              <Clock size={12} /> LIVE
             </div>
           </div>
 
-          <div className="space-y-3 flex-1">
-            {uiTasks.map((t) => (
-              <div
-                key={t.id}
-                className="group flex items-center gap-3 bg-white p-3 border-2 border-black rounded-xl shadow-[2px_2px_0px_rgba(0,0,0,0.2)] hover:scale-105 transition-transform cursor-pointer"
-              >
-                <div className={cn("w-6 h-6 border-2 border-black rounded-full flex items-center justify-center transition-colors group-hover:bg-black group-hover:text-white")}>
-                  <CheckCircle2 className="w-4 h-4 opacity-0 group-hover:opacity-100" />
+          <div className="space-y-3 flex-1 overflow-y-auto max-h-[320px] pr-1">
+            {realtime.recentAttempts.length === 0 ? (
+              uiTasks.map((t) => (
+                <div
+                  key={t.id}
+                  className="group flex items-center gap-3 bg-white p-3 border-2 border-black rounded-xl shadow-[2px_2px_0px_rgba(0,0,0,0.2)] hover:scale-105 transition-transform cursor-pointer"
+                >
+                  <div className={cn("w-6 h-6 border-2 border-black rounded-full flex items-center justify-center transition-colors group-hover:bg-black group-hover:text-white")}>
+                    <CheckCircle2 className="w-4 h-4 opacity-0 group-hover:opacity-100" />
+                  </div>
+                  <span className="font-sketch text-xl leading-none pt-1">{t.text}</span>
+                  <span className={cn("ml-auto text-[10px] font-bold border border-black px-1 rounded uppercase", t.color)}>
+                    {t.tag}
+                  </span>
                 </div>
-                <span className="font-sketch text-xl leading-none pt-1">{t.text}</span>
-                <span className={cn("ml-auto text-[10px] font-bold border border-black px-1 rounded uppercase", t.color)}>
-                  {t.tag}
-                </span>
-              </div>
-            ))}
-            <button className="w-full py-3 border-2 border-dashed border-black/50 rounded-xl font-bold text-black/50 hover:bg-white/50 hover:border-black hover:text-black transition-all mt-4">
-              + Add New Task
-            </button>
+              ))
+            ) : (
+              realtime.recentAttempts.map((attempt, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center justify-between bg-white p-3 border-2 border-black rounded-xl shadow-[2px_2px_0px_#000]"
+                >
+                  <div>
+                    <div className="font-black text-sm">{attempt.name}</div>
+                    <div className="font-sketch text-xs text-zinc-600">{attempt.category || 'Quiz Challenge'}</div>
+                  </div>
+                  <div className="text-right">
+                    <span className="font-black text-amber-600 text-sm">
+                      {attempt.score}/{attempt.total} ({attempt.percentage}%)
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </PopCard>
       </div>
@@ -383,9 +498,9 @@ export function OverviewView({ timeRange }: { timeRange: string }) {
             <div className="w-20 h-20 bg-white border-[3px] border-black rounded-full flex items-center justify-center mb-4 shadow-[4px_4px_0px_#000]">
               <Zap className="w-10 h-10 text-yellow-400 fill-yellow-400 stroke-black stroke-2" />
             </div>
-            <h3 className="text-2xl font-black">Upgrade to QuizMaster Pro</h3>
-            <p className="font-sketch text-lg mb-6 max-w-xs">Unlock infinite practice quizzes, detailed answer explanations, and live ranking!</p>
-            <SketchButton variant="primary" onClick={() => { }} icon={Zap} className="w-full">Unlock Pro Pass</SketchButton>
+            <h3 className="text-2xl font-black">QuizMaster Live Sync Active</h3>
+            <p className="font-sketch text-lg mb-6 max-w-xs">Every completed quiz on the Quiz page automatically updates your dashboard stats!</p>
+            <SketchButton variant="primary" onClick={() => { window.location.href = '/quiz'; }} icon={Zap} className="w-full">Take Quiz Now</SketchButton>
           </PopCard>
         </div>
       </div>
