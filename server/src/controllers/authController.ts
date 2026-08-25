@@ -2,6 +2,14 @@ import { Response } from 'express';
 import { AuthenticatedRequest } from '../middleware/auth.js';
 import { User } from '../models/User.js';
 
+/**
+ * Controller Endpoint Function: Synchronizes Firebase Google User account with MongoDB.
+ * Concepts Used:
+ * - Upsert pattern (`findOne` + `create`)
+ * - Mongoose Document Creation
+ * 
+ * @route POST /api/auth/sync
+ */
 export async function syncUser(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
     const { uid, email, name } = req.user || {};
@@ -26,6 +34,11 @@ export async function syncUser(req: AuthenticatedRequest, res: Response): Promis
   }
 }
 
+/**
+ * Controller Endpoint Function: Returns user profile stats (quizzes taken, score totals).
+ * 
+ * @route GET /api/auth/profile
+ */
 export async function getUserProfile(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
     const { uid } = req.user || {};

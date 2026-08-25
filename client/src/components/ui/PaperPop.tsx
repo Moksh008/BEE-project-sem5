@@ -101,9 +101,9 @@ export const uiTasks = [
 
 export const teamMembers = [
   { id: 1, name: "Riya Yadav", role: "Top Scorer (98%)", avatar: "Felix" },
-  { id: 2, name: "Alex Rivera", role: "Rank #2 Scholar", avatar: "Oliver" },
-  { id: 3, name: "Jordan Smith", role: "BEE Specialist", avatar: "Max" },
-  { id: 4, name: "Sam Wilson", role: "Code Master", avatar: "Lucy" },
+  { id: 2, name: "Moksh Kulshrestha", role: "Rank #2 Scholar", avatar: "Oliver" },
+  { id: 3, name: "Riddhi ", role: "BEE Specialist", avatar: "Max" },
+  { id: 4, name: "Riya G.", role: "Code Master", avatar: "Lucy" },
 ];
 
 // --- Components ---
@@ -263,6 +263,16 @@ export function Sidebar({ active, setActive, isOpen, setIsOpen }: { active: stri
 // --- Views ---
 
 // --- Real-time Quiz Stats Hook ---
+/**
+ * Custom React Hook: `useRealtimeStats()`
+ * Concepts Used:
+ * - Real-time State Synchronization Hook
+ * - Polling with `setInterval(..., 2500)`
+ * - Inter-tab Cross-Window Event Listener (`window.addEventListener('storage', ...)`)
+ * - REST API Synchronization with `fetch('/api/leaderboard')`
+ * 
+ * @returns Realtime statistics object for Dashboard views.
+ */
 export function useRealtimeStats() {
   const [stats, setStats] = useState({
     completedCount: 0,
@@ -284,6 +294,7 @@ export function useRealtimeStats() {
       let totalPerc = 0;
       let highest = 0;
 
+      // Higher-Order Method: `.forEach()` aggregates total percentage & peak score
       localScores.forEach((item) => {
         const p = Number(item.percentage) || 0;
         totalPerc += p;
@@ -292,7 +303,7 @@ export function useRealtimeStats() {
 
       const avg = count > 0 ? Math.round(totalPerc / count) : 0;
 
-      // Sync with server leaderboard
+      // Async fetch to sync server-side leaderboard
       fetch('/api/leaderboard')
         .then((res) => res.json())
         .then((data) => {
@@ -316,6 +327,7 @@ export function useRealtimeStats() {
     }
 
     refreshStats();
+    // 2.5 second polling loop & storage event listener
     const timer = setInterval(refreshStats, 2500);
     window.addEventListener('storage', refreshStats);
 

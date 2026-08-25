@@ -1,5 +1,12 @@
 import mongoose from 'mongoose';
 
+/**
+ * MongoDB Atlas Database Connection Manager.
+ * Concepts Used:
+ * - Asynchronous Promises & `async/await`
+ * - Mongoose ODM (Object Data Modeling) Connection (`mongoose.connect`)
+ * - Non-blocking Fallback Error Handling (`try/catch`)
+ */
 export async function connectDB(): Promise<void> {
   const mongoUri = process.env.MONGO_URI;
 
