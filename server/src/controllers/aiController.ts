@@ -1,6 +1,17 @@
 import { Request, Response } from 'express';
 
+/**
+ * Helper Function: Extracts key academic sentences and keywords from raw notes/syllabus text.
+ * Concepts Used:
+ * - String Manipulation: `.split()`, `.trim()`, `.replace()`, Regex Lookbehind `(?<=[.!?])`
+ * - Array Higher-Order Functions: `.map()`, `.filter()`
+ * - ES6 Data Structures: `Set` for stopword filtering & duplicate removal (`Set` -> `Array.from`)
+ * 
+ * @param text - Raw lecture notes or syllabus input text.
+ * @returns Object containing filtered sentences array and unique keywords array.
+ */
 function extractKeyConcepts(text: string): { sentences: string[]; keywords: string[] } {
+  // Split raw text into sentences using punctuation regex
   const rawSentences = text
     .split(/(?<=[.!?])\s+|\n+/)
     .map((s) => s.trim())
@@ -18,6 +29,7 @@ function extractKeyConcepts(text: string): { sentences: string[]; keywords: stri
     sentences = [text.trim() || 'Core Academic Principle'];
   }
 
+  // Common English stop words to filter out non-essential vocabulary
   const stopwords = new Set([
     'about', 'above', 'after', 'again', 'against', 'all', 'also', 'and', 'any', 'are', 'because',
     'been', 'before', 'being', 'below', 'between', 'both', 'but', 'by', 'can', 'could', 'did',
@@ -29,20 +41,35 @@ function extractKeyConcepts(text: string): { sentences: string[]; keywords: stri
     'what', 'when', 'where', 'which', 'while', 'who', 'whom', 'why', 'with', 'would', 'your'
   ]);
 
+  // Extract meaningful non-stopword tokens using regular expressions
   const allWords = text
     .replace(/[^\w\s]/gi, '')
     .split(/\s+/)
     .filter((w) => w.length > 3 && !stopwords.has(w.toLowerCase()));
 
+  // Deduplicate keywords using ES6 Set
   const uniqueKeywords = Array.from(new Set(allWords));
 
   return { sentences, keywords: uniqueKeywords };
 }
 
+/**
+ * Controller Endpoint Function: Generates interactive multiple-choice questions from lecture notes.
+ * Concepts Used:
+ * - Express Request/Response Handling (`req: Request`, `res: Response`)
+ * - Object Destructuring (`const { notesText, topic, count } = req.body`)
+ * - Asynchronous Operations (`async/await`, Promises, `fetch`)
+ * - Groq Cloud AI Integration (Llama 3.1 8B Instant)
+ * - Array Generation & Fallback Algorithms
+ * 
+ * @route POST /api/ai/generate-quiz
+ */
 export async function generateQuizFromNotes(req: Request, res: Response): Promise<void> {
   try {
+    // 1. Destructure user parameters from HTTP request body
     const { notesText, topic = 'General Academic', count = 5, difficulty = 'medium' } = req.body;
 
+    // 2. Input Validation (Guard Clause)
     if (!notesText || typeof notesText !== 'string' || notesText.trim().length === 0) {
       res.status(400).json({ error: 'Please provide notesText (lecture notes, syllabus, or topic text).' });
       return;
@@ -51,6 +78,7 @@ export async function generateQuizFromNotes(req: Request, res: Response): Promis
     const requestedCount = Math.min(Math.max(Number(count) || 5, 3), 10);
     const apiKey = process.env.GROQ_API_KEY;
 
+    // 3. Groq Cloud AI Generator Integration
     if (apiKey && apiKey.startsWith('gsk_')) {
       const prompt = `
 You are an expert academic professor and quiz creator.
@@ -83,6 +111,7 @@ Follow this JSON schema strictly:
         'mixtral-8x7b-32768'
       ];
 
+      // Iterative loop over supported Groq LLM model names (Loop + Async/Await)
       for (const modelName of groqModels) {
         try {
           const groqResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -139,9 +168,10 @@ Follow this JSON schema strictly:
       }
     }
 
-    // --- Enhanced Multi-Concept Fallback Note Parser ---
+    // 4. --- Enhanced Multi-Concept Fallback Note Parser (Local JS Algorithm) ---
     const { sentences, keywords } = extractKeyConcepts(notesText);
 
+    // Array of higher-order arrow function templates
     const questionTemplates = [
       (concept: string, top: string) => `According to your notes on ${top}, what is the primary principle regarding "${concept}"?`,
       (concept: string, top: string) => `In the context of ${top}, which statement accurately describes "${concept}"?`,
@@ -150,6 +180,7 @@ Follow this JSON schema strictly:
       (concept: string, top: string) => `Based on the syllabus text for ${top}, how is "${concept}" defined?`,
     ];
 
+    // Generate non-repeating question objects using Array.from and Modulo Operator (%)
     const generatedQuestions = Array.from({ length: requestedCount }, (_, i) => {
       const currentSentence = sentences[i % sentences.length] || `Core concept ${i + 1} in ${topic}`;
 
@@ -195,6 +226,7 @@ Follow this JSON schema strictly:
       };
     });
 
+    // 5. Send JSON Response back to client
     res.json({
       source: 'groq-fallback',
       topic,

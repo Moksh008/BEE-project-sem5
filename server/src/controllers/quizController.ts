@@ -4,6 +4,10 @@ import { Score } from '../models/Score.js';
 import { User } from '../models/User.js';
 import { AuthenticatedRequest } from '../middleware/auth.js';
 
+/**
+ * Interface representing a seeded multiple-choice question item.
+ * Concept: TypeScript Type Annotation & Interface Safety.
+ */
 interface SeedQuestionItem {
   category: string;
   difficulty: 'easy' | 'medium' | 'hard';
@@ -14,6 +18,7 @@ interface SeedQuestionItem {
   source: 'curated' | 'ai' | 'opentdb';
 }
 
+/** Curated question dataset for BEE (Basic Electrical Engineering) and CS domain fallback */
 const seedQuestions: SeedQuestionItem[] = [
   {
     category: 'bee',
@@ -71,20 +76,32 @@ const seedQuestions: SeedQuestionItem[] = [
   },
 ];
 
+/**
+ * Controller Endpoint Function: Fetches quiz questions by category and difficulty.
+ * Concepts Used:
+ * - Query Parameter Extraction (`req.query.category`, `req.query.count`)
+ * - Mongoose Database Queries (`Question.find()`)
+ * - Array Filtering & Fallback Mode
+ * 
+ * @route GET /api/quizzes/questions
+ */
 export async function getQuestions(req: Request, res: Response): Promise<void> {
   try {
+    // 1. Extract and normalize HTTP GET query parameters
     const category = ((req.query.category as string) || 'bee').toLowerCase();
     const difficulty = ((req.query.difficulty as string) || 'medium').toLowerCase();
     const count = parseInt((req.query.count as string) || '10', 10);
 
     let questions: any[] = [];
 
+    // 2. Attempt MongoDB Atlas Query
     try {
       questions = await Question.find({ category, difficulty } as any).limit(count).lean();
     } catch {
       questions = [];
     }
 
+    // 3. In-Memory Fallback if MongoDB is unreachable or empty
     if (questions.length === 0) {
       const filtered = seedQuestions.filter(
         (q) => q.category === category || category === 'general' || category === 'bee'
@@ -116,8 +133,19 @@ export async function getQuestions(req: Request, res: Response): Promise<void> {
   }
 }
 
+/**
+ * Controller Endpoint Function: Submits and records student quiz score results.
+ * Concepts Used:
+ * - Express Request Body Parsing (`req.body`)
+ * - Mathematical Percentage Calculation (`Math.round((score / total) * 100)`)
+ * - Database Persistence (`Score.create()`, `User.findOneAndUpdate`)
+ * - Dynamic Grade Assignment (Ternary operators)
+ * 
+ * @route POST /api/quizzes/submit
+ */
 export async function submitQuiz(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
+    // 1. Destructure quiz performance fields from HTTP POST body
     const { username, category, difficulty, score, totalQuestions, timeSpentSeconds } = req.body;
 
     const safeUsername = username || req.user?.name || 'Player Scholar';
@@ -126,6 +154,7 @@ export async function submitQuiz(req: AuthenticatedRequest, res: Response): Prom
     const percentage = Math.round((safeScore / safeTotal) * 100);
 
     let scoreDoc;
+    // 2. Store score in MongoDB
     try {
       scoreDoc = await Score.create({
         userUid: req.user?.uid,
@@ -156,6 +185,7 @@ export async function submitQuiz(req: AuthenticatedRequest, res: Response): Prom
       };
     }
 
+    // 3. Return performance evaluation payload
     res.json({
       message: 'Quiz result recorded successfully!',
       result: {

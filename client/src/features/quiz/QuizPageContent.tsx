@@ -31,6 +31,7 @@ import {
   SketchButton
 } from '../../components/ui/PaperPop';
 
+/** Category domain options for standard quiz setup */
 const categoryOptions = [
   { id: 'bee', label: 'Basic Electrical Engineering (BEE)', icon: Zap, color: 'bg-amber-200' },
   { id: 'cs', label: 'Computer Science Core', icon: Brain, color: 'bg-blue-200' },
@@ -38,6 +39,7 @@ const categoryOptions = [
   { id: 'general', label: 'General Knowledge & Science', icon: HelpCircle, color: 'bg-green-200' },
 ];
 
+/** OpenTDB Category ID Mapping Table */
 const categoryMap: Record<string, number> = {
   general: 9,
   science: 17,
@@ -48,8 +50,10 @@ const categoryMap: Record<string, number> = {
   entertainment: 11,
 };
 
+/** LocalStorage Key for persistable leaderboard data */
 const leaderboardKey = 'quiz-master-leaderboard';
 
+/** Interface for raw question payload from OpenTDB / external API */
 export interface RawQuestion {
   question: string;
   correct_answer: string;
@@ -57,6 +61,7 @@ export interface RawQuestion {
   explanation?: string;
 }
 
+/** Interface for standardized internal Question structure */
 export interface Question {
   id: string;
   text: string;
@@ -65,6 +70,7 @@ export interface Question {
   explanation?: string;
 }
 
+/** Interface for local Leaderboard entry */
 export interface LeaderboardEntry {
   name: string;
   score: number;
@@ -74,12 +80,24 @@ export interface LeaderboardEntry {
   date?: string;
 }
 
+/**
+ * Utility Function: Decodes HTML entities (e.g. &quot;, &#039;, &amp;) returned by external APIs.
+ * Concept: Browser DOM Textarea parsing trick for HTML entity decoding.
+ * @param html - Encoded HTML string.
+ * @returns Clean decoded plain-text string.
+ */
 function decodeHtml(html: string): string {
   const textarea = document.createElement('textarea');
   textarea.innerHTML = html;
   return textarea.value;
 }
 
+/**
+ * Utility Function: Formats raw seconds into MM:SS display format.
+ * Concept: Arithmetic division, modulo operator (`%`), and string padding (`padStart`).
+ * @param seconds - Number of seconds remaining.
+ * @returns Formatted string "MM:SS".
+ */
 function formatTime(seconds: number): string {
   const safeSeconds = Math.max(0, seconds);
   const minutes = Math.floor(safeSeconds / 60);
@@ -87,10 +105,20 @@ function formatTime(seconds: number): string {
   return `${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
 }
 
+/**
+ * Utility Function: Shuffles array choices in randomized order.
+ * Concept: Array cloning with Spread Operator (`[...]`) and `sort(Math.random() - 0.5)`.
+ * @param options - Array of answer choices.
+ * @returns Shuffled array of answer choices.
+ */
 function shuffleOptions(options: string[]): string[] {
   return [...options].sort(() => Math.random() - 0.5);
 }
 
+/**
+ * Utility Function: Retrieves stored leaderboard scores from localStorage.
+ * Concept: LocalStorage Read & JSON.parse deserialization.
+ */
 function getStoredLeaderboard(): LeaderboardEntry[] {
   try {
     const raw = localStorage.getItem(leaderboardKey);
@@ -100,10 +128,15 @@ function getStoredLeaderboard(): LeaderboardEntry[] {
   }
 }
 
+/**
+ * Utility Function: Persists updated leaderboard array into localStorage.
+ * Concept: LocalStorage Write & JSON.stringify serialization.
+ */
 function saveLeaderboard(entries: LeaderboardEntry[]): void {
   localStorage.setItem(leaderboardKey, JSON.stringify(entries));
 }
 
+/** Curated BEE seed question dataset */
 const seedBEEQuestions: Question[] = [
   {
     id: 'bee-1',
@@ -142,6 +175,10 @@ const seedBEEQuestions: Question[] = [
   }
 ];
 
+/**
+ * Asynchronous Data Fetching Function: Retrieves questions from backend API or fallbacks to seed questions.
+ * Concept: Promises, `async/await`, `fetch()` HTTP API calls, and Array mapping.
+ */
 async function fetchQuestions(category: string, difficulty: string, amount: number): Promise<Question[]> {
   try {
     const res = await fetch(`/api/quizzes/questions?category=${category}&difficulty=${difficulty}&count=${amount}`);
@@ -161,7 +198,7 @@ async function fetchQuestions(category: string, difficulty: string, amount: numb
       }
     }
   } catch {
-    // API unavailable, proceed to fallbacks
+    // Backend API offline, fallback to local dataset
   }
 
   if (category === 'bee') {
@@ -200,26 +237,32 @@ async function fetchQuestions(category: string, difficulty: string, amount: numb
       }
     }
   } catch {
-    // fallback to seed
+    // fallback
   }
 
   return seedBEEQuestions.slice(0, amount);
 }
 
+/**
+ * Primary React Page Component: Manages Quiz Arena, Timers, Palette Navigation, AI Note Generator & Scoring.
+ * Concept: React Hooks (`useState`, `useEffect`, `useMemo`), Event Handling & State Machine.
+ */
 export default function QuizPageContent(): React.ReactElement {
   const { user } = useAuth();
   const navigate = useNavigate();
 
+  // State Declarations for Form & Quiz Setup
   const [quizMode, setQuizMode] = useState<'standard' | 'ai'>('standard');
   const [playerName, setPlayerName] = useState(user?.username || 'Scholar');
   const [category, setCategory] = useState('bee');
   const [difficulty, setDifficulty] = useState('medium');
   const [questionCount, setQuestionCount] = useState<number | string>(5);
 
-  // AI Generator state
+  // State for AI Generator
   const [notesText, setNotesText] = useState('');
   const [aiTopic, setAiTopic] = useState('Basic Electrical Engineering');
 
+  // State for Active Quiz Gameplay
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
@@ -231,10 +274,12 @@ export default function QuizPageContent(): React.ReactElement {
   const [isLoading, setIsLoading] = useState(false);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
 
+  // Effect Hook: Initialize leaderboard from localStorage on initial render
   useEffect(() => {
     setLeaderboard(getStoredLeaderboard());
   }, []);
 
+  // Effect Hook: Countdown Timer Loop running every 1000ms while quiz is active
   useEffect(() => {
     if (!isQuizActive) return undefined;
 
@@ -242,9 +287,10 @@ export default function QuizPageContent(): React.ReactElement {
       setTimeLeft((previous) => previous - 1);
     }, 1000);
 
-    return () => clearInterval(timerId);
+    return () => clearInterval(timerId); // Cleanup interval on unmount or pause
   }, [isQuizActive]);
 
+  // Effect Hook: Auto-submit quiz when time reaches zero
   useEffect(() => {
     if (isQuizActive && timeLeft <= 0) {
       finishQuiz();
@@ -253,12 +299,17 @@ export default function QuizPageContent(): React.ReactElement {
 
   const currentQuestion = questions[currentIndex];
 
+  /**
+   * Memoized Score & Performance Evaluation.
+   * Concept: `useMemo` caching to compute score, accuracy %, and letter grade without unnecessary re-renders.
+   */
   const scoreData = useMemo(() => {
     if (!questions.length || isQuizActive || !hasStarted) {
       return null;
     }
 
     const total = questions.length;
+    // Higher-Order Function `.reduce()` calculates total correct responses
     const score = questions.reduce((count, question, index) => {
       return count + (selectedAnswers[index] === question.correctAnswer ? 1 : 0);
     }, 0);
@@ -274,6 +325,10 @@ export default function QuizPageContent(): React.ReactElement {
     return { total, score, percentage, grade, timeSpent };
   }, [questions, selectedAnswers, isQuizActive, hasStarted, initialTime, timeLeft]);
 
+  /**
+   * Handler Function: Selects an option for the current question index.
+   * Concept: Immutable state update using object spread operator.
+   */
   function selectOption(option: string) {
     if (!isQuizActive) return;
     setSelectedAnswers((previous) => ({
@@ -282,6 +337,9 @@ export default function QuizPageContent(): React.ReactElement {
     }));
   }
 
+  /**
+   * Handler Function: Flags or unflags a question for review in the palette.
+   */
   function toggleFlagQuestion(index: number) {
     setFlaggedQuestions((prev) => ({
       ...prev,
@@ -289,6 +347,10 @@ export default function QuizPageContent(): React.ReactElement {
     }));
   }
 
+  /**
+   * Handler Function: Starts a Standard Category Quiz.
+   * Concept: Asynchronous form submission & state reset.
+   */
   async function handleStartQuiz(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsLoading(true);
@@ -311,6 +373,10 @@ export default function QuizPageContent(): React.ReactElement {
     setIsLoading(false);
   }
 
+  /**
+   * Handler Function: Sends syllabus notes to Groq Cloud AI API to generate a custom quiz.
+   * Concept: HTTP POST request with `fetch()`, JSON payload, and state initialization.
+   */
   async function handleGenerateAiQuiz(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!notesText.trim()) return;
@@ -363,7 +429,7 @@ export default function QuizPageContent(): React.ReactElement {
       console.error('Error generating AI quiz:', error);
     }
 
-    // Fallback to standard BEE questions if API offline
+    // Fallback to BEE questions if API offline
     const fallback = seedBEEQuestions.slice(0, safeAmount);
     setQuestions(fallback);
     setCurrentIndex(0);
@@ -377,6 +443,10 @@ export default function QuizPageContent(): React.ReactElement {
     setIsLoading(false);
   }
 
+  /**
+   * Handler Function: Finishes active quiz, computes final score, saves leaderboard to localStorage & syncs backend.
+   * Concept: Array sorting (`.sort`), Array slicing (`.slice`), LocalStorage Persistence & Express POST API call.
+   */
   function finishQuiz() {
     if (!isQuizActive) return;
 
@@ -580,11 +650,11 @@ export default function QuizPageContent(): React.ReactElement {
                   /* AI Note-to-Quiz Form */
                   <form onSubmit={handleGenerateAiQuiz} className="space-y-6">
                     <div className="p-4 bg-purple-200 border-[2px] border-black shape-wobble-sm flex items-center gap-3">
-                      <Cpu className="w-8 h-8 text-purple-900" />
+                      <Cpu className="w-8 h-8 text-purple-900 shrink-0" />
                       <div>
                         <h3 className="font-black text-base">Groq Cloud Llama 3.3 70B AI Generator</h3>
                         <p className="font-sketch text-sm text-purple-950">
-                          Paste your lecture notes, syllabus, or course textbook text below. Groq AI (Llama 3.3) will convert it into an interactive quiz instantly!
+                          Paste your lecture notes, syllabus, or course textbook text below to generate a custom quiz!
                         </p>
                       </div>
                     </div>
@@ -598,7 +668,7 @@ export default function QuizPageContent(): React.ReactElement {
                         value={aiTopic}
                         onChange={(e) => setAiTopic(e.target.value)}
                         className="w-full px-4 py-3 bg-white border-[3px] border-black font-bold shadow-[2px_2px_0px_#000] shape-wobble-sm focus:outline-none"
-                        placeholder="e.g. BEE Unit 2 - Transformers & AC Circuits"
+                        placeholder="e.g. Basic Electrical Engineering"
                         required
                       />
                     </div>
@@ -608,11 +678,11 @@ export default function QuizPageContent(): React.ReactElement {
                         Paste Syllabus / Lecture Notes
                       </label>
                       <textarea
-                        rows={6}
+                        rows={7}
                         value={notesText}
                         onChange={(e) => setNotesText(e.target.value)}
-                        className="w-full p-4 bg-white border-[3px] border-black font-medium shadow-[2px_2px_0px_#000] shape-wobble-sm focus:outline-none text-sm"
-                        placeholder="Paste paragraph notes here... e.g. Kirchhoff's Voltage Law (KVL) states that the sum of all electrical potential differences around a closed loop is zero..."
+                        className="w-full p-4 bg-white border-[3px] border-black font-medium shadow-[2px_2px_0px_#000] shape-wobble-sm focus:outline-none text-sm font-mono"
+                        placeholder="Paste paragraph notes or syllabus topics here..."
                         required
                       />
                     </div>
@@ -629,7 +699,7 @@ export default function QuizPageContent(): React.ReactElement {
                         >
                           <option value="easy">Easy (Conceptual)</option>
                           <option value="medium">Medium (Standard Exam)</option>
-                          <option value="hard">Hard (Numerical / Deep)</option>
+                          <option value="hard">Hard (Advanced Challenge)</option>
                         </select>
                       </div>
 
@@ -703,10 +773,10 @@ export default function QuizPageContent(): React.ReactElement {
               <PopCard color="bg-pink-100" className="p-6">
                 <div className="flex items-center gap-2 mb-2">
                   <Sparkles className="w-5 h-5 text-black" />
-                  <h4 className="font-black text-base">Pro Tip for BEE Students</h4>
+                  <h4 className="font-black text-base">Pro Tip for BEE & CS Students</h4>
                 </div>
                 <p className="font-sketch text-base text-black/80">
-                  Double check circuit polarities in KCL & KVL questions. Use the AI tab to paste your BEE syllabus and create instant practice tests!
+                  Master KCL, KVL, Transformers, and AC Phasors for BEE. Paste your syllabus notes into the AI tab to generate an instant practice exam!
                 </p>
               </PopCard>
             </div>
@@ -746,7 +816,7 @@ export default function QuizPageContent(): React.ReactElement {
                 <PopCard color="bg-white" className="p-8">
                   <div className="flex items-start justify-between gap-4 mb-6">
                     <span className="font-sketch font-bold text-amber-700 text-sm tracking-wider uppercase flex items-center gap-1">
-                      <HelpCircle size={16} /> Multiple Choice Question {quizMode === 'ai' && '• AI Generated'}
+                      <HelpCircle size={16} /> Multiple Choice Question {quizMode === 'ai' && '• Groq AI Generated'}
                     </span>
                     <button
                       onClick={() => toggleFlagQuestion(currentIndex)}
