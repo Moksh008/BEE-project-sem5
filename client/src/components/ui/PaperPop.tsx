@@ -191,7 +191,8 @@ export function TimeToggle({ active, onChange }: { active: string; onChange: (va
 }
 
 // --- Navigation ---
-export function Sidebar({ active, setActive, isOpen, setIsOpen }: { active: string; setActive: (active: string) => void; isOpen: boolean; setIsOpen: (isOpen: boolean) => void }) {
+export function Sidebar({ active, setActive, is
+  , setIsOpen }: { active: string; setActive: (active: string) => void; isOpen: boolean; setIsOpen: (isOpen: boolean) => void }) {
   const items = [
     { id: "Dashboard", icon: Layout },
     { id: "Analytics", icon: PieChart },

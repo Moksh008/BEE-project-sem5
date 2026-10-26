@@ -2,266 +2,266 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  Sparkles,
   ArrowRight,
   Timer,
   CheckCircle2,
   Trophy,
-  Zap,
   BookOpen,
+  Sparkles,
+  Zap,
   Brain,
   Code,
   Users,
   HelpCircle,
+  Award,
+  Cpu,
   Play,
-  LogIn
+  ChevronDown
 } from 'lucide-react';
 import {
-  GlobalStyles,
-  ChartPatterns,
-  PopCard,
+  HandDrawnFilters,
   SketchButton,
-  teamMembers
-} from '../components/ui/PaperPop';
+} from '../components/ui/HandDrawn';
+import { GlobalStyles, ChartPatterns, PopCard, teamMembers } from '../components/ui/PaperPop';
 
 /**
- * Landing Page Component (Paper-Pop Retro Hand-Drawn Theme).
- * Concept: Mobile-First Vertical Stack Layout (`flex flex-col w-full overflow-x-hidden`)
- * Prevents horizontal layout overflow and guarantees responsive vertical section stacking.
+ * Vertical Landing Page Component.
+ * Features:
+ * - 100% Vertical Scrolling Layout (Hero -> Features -> Syllabus -> Team -> FAQ -> Footer)
+ * - PaperPop Retro Hand-Drawn Design System
+ * - Fully Responsive Grid & Card Stacking
  */
 export default function LandingPage(): React.ReactElement {
   return (
-    <div className="min-h-screen w-full bg-[#fdfbf7] flex flex-col overflow-x-hidden font-sans text-black selection:bg-yellow-300 selection:text-black">
+    <div className="min-h-screen bg-[#fdfbf7] flex flex-col font-sans text-[#1e1e1e] selection:bg-yellow-300 selection:text-black">
       <GlobalStyles />
       <ChartPatterns />
+      <HandDrawnFilters />
 
-      {/* --- STICKY NAVBAR --- */}
-      <header className="sticky top-0 z-50 flex items-center justify-between px-6 py-4 bg-[#fdfbf7]/90 backdrop-blur-sm border-b-[3px] border-black">
+      {/* --- TOP NAVBAR --- */}
+      <header className="sticky top-0 z-50 flex items-center justify-between px-6 md:px-12 py-5 bg-[#fdfbf7]/90 backdrop-blur-md border-b-[3px] border-black">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-yellow-300 border-[2.5px] border-black rounded-xl shape-wobble-sm shadow-[2px_2px_0px_#000]">
+          <div className="p-2 bg-yellow-300 border-[2.5px] border-black shape-wobble-sm shadow-[2px_2px_0px_#000]">
             <Zap className="w-6 h-6 text-black fill-black" />
           </div>
-          <span className="text-xl md:text-2xl font-black tracking-tight">
-            Quiz<span className="text-amber-600 underline decoration-yellow-400 decoration-wavy">Master</span>
+          <span className="text-2xl font-black tracking-tight">
+            Quiz<span className="underline decoration-yellow-400 decoration-wavy">Master</span>
           </span>
         </div>
 
-        <nav className="hidden md:flex items-center gap-8 font-sketch font-bold text-base">
-          <a href="#features" className="hover:text-amber-700 transition-colors">FEATURES</a>
-          <a href="#topics" className="hover:text-amber-700 transition-colors">TOPICS</a>
-          <a href="#team" className="hover:text-amber-700 transition-colors">TEAM</a>
-          <a href="#faq" className="hover:text-amber-700 transition-colors">FAQ</a>
+        <nav className="hidden md:flex items-center gap-8 font-black text-sm uppercase tracking-wider">
+          <a href="#features" className="hover:text-amber-600 transition-colors">Features</a>
+          <a href="#syllabus" className="hover:text-amber-600 transition-colors">Syllabus</a>
+          <a href="#team" className="hover:text-amber-600 transition-colors">Team</a>
+          <a href="#faq" className="hover:text-amber-600 transition-colors">FAQ</a>
         </nav>
 
         <div className="flex items-center gap-3">
           <Link to="/login">
-            <SketchButton variant="primary" icon={LogIn} className="text-sm py-2 px-5">
+            <SketchButton variant="primary" icon={ArrowRight} className="text-sm py-2 px-5">
               Log In
             </SketchButton>
           </Link>
         </div>
       </header>
 
-      {/* --- HERO SECTION (VERTICAL STACK) --- */}
-      <section className="w-full max-w-5xl mx-auto px-6 pt-16 pb-20 flex flex-col items-center text-center">
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="inline-flex items-center gap-2 px-4 py-1.5 bg-yellow-200 border-[2.5px] border-black shape-wobble-sm shadow-[2px_2px_0px_#000] font-sketch font-bold text-sm mb-6"
-        >
-          <Sparkles className="w-4 h-4 text-amber-700" /> BEE PROJECT • SEMESTER 5 EVALUATION
-        </motion.div>
+      <main className="flex-1 max-w-6xl w-full mx-auto px-4 md:px-8 py-12 flex flex-col gap-20">
+        {/* --- 1. HERO SECTION (VERTICAL STACK) --- */}
+        <section className="flex flex-col items-center text-center pt-8 pb-12 relative">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="inline-flex items-center gap-2 px-4 py-1.5 bg-yellow-200 border-[2.5px] border-black shape-wobble-sm shadow-[2px_2px_0px_#000] font-sketch font-bold text-sm text-black mb-6"
+          >
+            <Sparkles size={16} className="text-amber-600" /> BEE Project • Semester 5 Evaluation
+          </motion.div>
 
-        <motion.h1
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight leading-[1.15] mb-6 max-w-4xl"
-        >
-          Master Electrical & Web Concepts with <span className="underline decoration-yellow-400 decoration-wavy">Real-Time Quiz Engine</span>
-        </motion.h1>
+          <h1 className="text-4xl md:text-6xl lg:text-7xl font-black tracking-tight leading-[1.1] mb-6 max-w-4xl">
+            Master Electrical & Web Concepts with <span className="bg-yellow-300 px-3 py-1 border-[3px] border-black shape-wobble inline-block shadow-[3px_3px_0px_#000] my-1">Real-Time</span> Speed.
+          </h1>
 
-        <p className="font-sketch text-lg sm:text-xl md:text-2xl text-zinc-700 max-w-2xl mb-8 leading-relaxed">
-          Interactive evaluation platform designed for semester study. Practice BEE, Web Tech, and CS topics with dynamic timers, live score analytics, and Groq Llama 3.3 AI note conversion!
-        </p>
+          <p className="font-sketch text-xl md:text-2xl text-black/80 max-w-2xl mb-8 leading-relaxed">
+            An interactive assessment platform featuring timed quiz challenges, Groq Llama 3.3 AI syllabus generators, live rank analytics, and instant score breakdowns.
+          </p>
 
-        <div className="flex flex-wrap items-center justify-center gap-4 mb-12">
-          <Link to="/login">
-            <SketchButton variant="primary" icon={Play} className="text-lg py-3.5 px-8">
-              Start Quiz Engine
-            </SketchButton>
-          </Link>
-          <a href="#features">
-            <SketchButton variant="outline" icon={ArrowRight} className="text-lg py-3.5 px-8">
-              Explore Features
-            </SketchButton>
-          </a>
-        </div>
+          <div className="flex flex-wrap items-center justify-center gap-4">
+            <Link to="/login">
+              <SketchButton variant="primary" icon={Play} className="text-lg py-4 px-8 bg-yellow-400 hover:bg-yellow-500">
+                Launch Quiz Engine Now
+              </SketchButton>
+            </Link>
+            <a href="#features">
+              <SketchButton variant="outline" icon={ChevronDown} className="text-lg py-4 px-8">
+                Explore Features
+              </SketchButton>
+            </a>
+          </div>
+        </section>
 
-        {/* Hero Quick Stat Badges */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full max-w-4xl">
-          <PopCard color="bg-amber-100" className="p-4 text-center">
-            <div className="text-2xl font-black">100%</div>
-            <div className="font-sketch text-sm">Real-time Timers</div>
-          </PopCard>
-          <PopCard color="bg-purple-100" className="p-4 text-center">
-            <div className="text-2xl font-black">Groq AI</div>
-            <div className="font-sketch text-sm">Llama 3.3 70B</div>
-          </PopCard>
-          <PopCard color="bg-blue-100" className="p-4 text-center">
-            <div className="text-2xl font-black">30+</div>
-            <div className="font-sketch text-sm">JS & BEE Modules</div>
-          </PopCard>
-          <PopCard color="bg-green-100" className="p-4 text-center">
-            <div className="text-2xl font-black">Live</div>
-            <div className="font-sketch text-sm">Leaderboard Sync</div>
-          </PopCard>
-        </div>
-      </section>
-
-      {/* --- FEATURES SECTION --- */}
-      <section id="features" className="w-full bg-white border-y-[3px] border-black py-20 px-6">
-        <div className="max-w-6xl mx-auto space-y-12">
-          <div className="text-center">
-            <span className="font-sketch text-sm font-bold text-amber-700 uppercase tracking-widest">CORE MODULES</span>
-            <h2 className="text-3xl md:text-4xl font-black">Quiz Master Platform Toolkit</h2>
+        {/* --- 2. CORE MODULES (FEATURES TOOLKIT) --- */}
+        <section id="features" className="space-y-8 pt-6">
+          <div className="text-center space-y-2">
+            <span className="font-sketch text-base font-bold uppercase tracking-widest text-amber-700">CORE MODULES</span>
+            <h2 className="text-3xl md:text-5xl font-black">
+              Quiz Master Platform <span className="underline decoration-yellow-400 decoration-wavy">Toolkit</span>
+            </h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <PopCard color="bg-yellow-100" className="p-8 flex flex-col justify-between">
               <div>
-                <div className="p-3 bg-yellow-300 border-[2.5px] border-black rounded-xl inline-block mb-4 shadow-[2px_2px_0px_#000]">
-                  <Timer className="w-8 h-8 text-black" />
+                <div className="w-12 h-12 bg-yellow-300 border-[2.5px] border-black shape-wobble-sm flex items-center justify-center mb-6 shadow-[2px_2px_0px_#000]">
+                  <Timer className="w-6 h-6 text-black" />
                 </div>
-                <h3 className="text-xl font-black mb-2">Timed Assessment Engine</h3>
-                <p className="font-sketch text-base text-zinc-700">
-                  Smart countdown clock with auto-submission guard, question palette navigation, and question flagging.
+                <h3 className="text-2xl font-black mb-3">Timed Assessment Engine</h3>
+                <p className="font-sketch text-lg text-black/80">
+                  Smart countdown clock with auto-submission guard, question flag navigator, and instant score evaluation.
                 </p>
               </div>
             </PopCard>
 
             <PopCard color="bg-purple-100" className="p-8 flex flex-col justify-between">
               <div>
-                <div className="p-3 bg-purple-300 border-[2.5px] border-black rounded-xl inline-block mb-4 shadow-[2px_2px_0px_#000]">
-                  <Sparkles className="w-8 h-8 text-purple-900" />
+                <div className="w-12 h-12 bg-purple-300 border-[2.5px] border-black shape-wobble-sm flex items-center justify-center mb-6 shadow-[2px_2px_0px_#000]">
+                  <Cpu className="w-6 h-6 text-purple-900" />
                 </div>
-                <h3 className="text-xl font-black mb-2">Groq Llama 3.3 AI Generator</h3>
-                <p className="font-sketch text-base text-zinc-700">
-                  Paste any lecture notes or syllabus text to generate custom, non-repeating multiple-choice quizzes instantly.
+                <h3 className="text-2xl font-black mb-3">Groq Llama 3.3 AI Generator</h3>
+                <p className="font-sketch text-lg text-black/80">
+                  Paste any lecture notes, textbook excerpt, or syllabus text to generate non-repeating custom quizzes instantly!
                 </p>
               </div>
             </PopCard>
 
             <PopCard color="bg-blue-100" className="p-8 flex flex-col justify-between">
               <div>
-                <div className="p-3 bg-blue-300 border-[2.5px] border-black rounded-xl inline-block mb-4 shadow-[2px_2px_0px_#000]">
-                  <Trophy className="w-8 h-8 text-black" />
+                <div className="w-12 h-12 bg-blue-300 border-[2.5px] border-black shape-wobble-sm flex items-center justify-center mb-6 shadow-[2px_2px_0px_#000]">
+                  <Trophy className="w-6 h-6 text-black" />
                 </div>
-                <h3 className="text-xl font-black mb-2">Live Real-Time Leaderboards</h3>
-                <p className="font-sketch text-base text-zinc-700">
-                  Inter-tab storage listeners & REST API polling synchronize top score rankings live across all student dashboards.
+                <h3 className="text-2xl font-black mb-3">Live Real-Time Leaderboard</h3>
+                <p className="font-sketch text-lg text-black/80">
+                  Inter-tab storage listeners & live API polling to track top student scores and accuracy rankings in real time.
                 </p>
               </div>
             </PopCard>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* --- TOPICS & CURRICULUM SECTION --- */}
-      <section id="topics" className="w-full py-20 px-6 max-w-6xl mx-auto space-y-12">
-        <div className="text-center">
-          <span className="font-sketch text-sm font-bold text-amber-700 uppercase tracking-widest">CURRICULUM COVERAGE</span>
-          <h2 className="text-3xl md:text-4xl font-black">Covering Electrical & Web Syllabus</h2>
-        </div>
+        {/* --- 3. CURRICULUM COVERAGE (SYLLABUS TOPICS) --- */}
+        <section id="syllabus" className="space-y-8 pt-6">
+          <div className="text-center space-y-2">
+            <span className="font-sketch text-base font-bold uppercase tracking-widest text-amber-700">CURRICULUM COVERAGE</span>
+            <h2 className="text-3xl md:text-5xl font-black">
+              Covering Electrical & <span className="underline decoration-pink-400 decoration-wavy">Web Syllabus</span>
+            </h2>
+          </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <PopCard color="bg-amber-200" className="p-6">
-            <Zap className="w-8 h-8 mb-3 text-black" />
-            <h3 className="font-black text-xl mb-2">BEE Electrical</h3>
-            <p className="font-sketch text-sm text-black/80">KCL, KVL, Ideal Transformers, AC Phasors & Impedance.</p>
-          </PopCard>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <PopCard color="bg-amber-200" className="p-6">
+              <div className="p-3 bg-white border-[2px] border-black shape-wobble-sm w-fit mb-4 shadow-[2px_2px_0px_#000]">
+                <Zap className="w-6 h-6 text-amber-600" />
+              </div>
+              <h4 className="text-xl font-black mb-2">BEE Electrical</h4>
+              <p className="font-sketch text-base text-black/80">
+                KCL, KVL, Ideal Transformers, AC Phasors, Impedance & Power Factors.
+              </p>
+            </PopCard>
 
-          <PopCard color="bg-yellow-300" className="p-6">
-            <Code className="w-8 h-8 mb-3 text-black" />
-            <h3 className="font-black text-xl mb-2">JavaScript Core</h3>
-            <p className="font-sketch text-sm text-black/80">Variables, ES6+, Higher-Order Methods (map, filter, reduce).</p>
-          </PopCard>
+            <PopCard color="bg-yellow-200" className="p-6">
+              <div className="p-3 bg-white border-[2px] border-black shape-wobble-sm w-fit mb-4 shadow-[2px_2px_0px_#000]">
+                <Code className="w-6 h-6 text-yellow-600" />
+              </div>
+              <h4 className="text-xl font-black mb-2">JS 30-Module Core</h4>
+              <p className="font-sketch text-base text-black/80">
+                Variables, ES6, Higher-Order Methods (map, filter, reduce), Closures & Promises.
+              </p>
+            </PopCard>
 
-          <PopCard color="bg-blue-200" className="p-6">
-            <Brain className="w-8 h-8 mb-3 text-black" />
-            <h3 className="font-black text-xl mb-2">Computer Science</h3>
-            <p className="font-sketch text-sm text-black/80">Data Structures (Stack LIFO, Queues) & Algorithm Basics.</p>
-          </PopCard>
+            <PopCard color="bg-blue-200" className="p-6">
+              <div className="p-3 bg-white border-[2px] border-black shape-wobble-sm w-fit mb-4 shadow-[2px_2px_0px_#000]">
+                <Brain className="w-6 h-6 text-blue-600" />
+              </div>
+              <h4 className="text-xl font-black mb-2">Computer Science</h4>
+              <p className="font-sketch text-base text-black/80">
+                Data Structures, Stacks (LIFO), Queues, Algorithms & Complexity.
+              </p>
+            </PopCard>
 
-          <PopCard color="bg-pink-200" className="p-6">
-            <BookOpen className="w-8 h-8 mb-3 text-black" />
-            <h3 className="font-black text-xl mb-2">Web Technology</h3>
-            <p className="font-sketch text-sm text-black/80">DOM Traversal, Event Handling, LocalStorage & Fetch API.</p>
-          </PopCard>
-        </div>
-      </section>
+            <PopCard color="bg-pink-200" className="p-6">
+              <div className="p-3 bg-white border-[2px] border-black shape-wobble-sm w-fit mb-4 shadow-[2px_2px_0px_#000]">
+                <BookOpen className="w-6 h-6 text-pink-600" />
+              </div>
+              <h4 className="text-xl font-black mb-2">Web Technologies</h4>
+              <p className="font-sketch text-base text-black/80">
+                DOM Traversal, Event Handling, Local Storage & Fetch REST APIs.
+              </p>
+            </PopCard>
+          </div>
+        </section>
 
-      {/* --- TEAM SECTION --- */}
-      <section id="team" className="w-full bg-indigo-50 border-y-[3px] border-black py-20 px-6">
-        <div className="max-w-6xl mx-auto space-y-12">
-          <div className="text-center">
-            <span className="font-sketch text-sm font-bold text-amber-700 uppercase tracking-widest">PROJECT DEVELOPERS</span>
-            <h2 className="text-3xl md:text-4xl font-black">BEE Project Semester 5 Team</h2>
+        {/* --- 4. PROJECT DEVELOPERS (TEAM) --- */}
+        <section id="team" className="space-y-8 pt-6">
+          <div className="text-center space-y-2">
+            <span className="font-sketch text-base font-bold uppercase tracking-widest text-amber-700">PROJECT DEVELOPERS</span>
+            <h2 className="text-3xl md:text-5xl font-black">
+              BEE Project <span className="underline decoration-blue-400 decoration-wavy">Semester 5 Team</span>
+            </h2>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {teamMembers.map((member) => (
-              <PopCard key={member.id} color="bg-white" className="p-6 flex flex-col items-center text-center">
-                <div className="w-20 h-20 bg-yellow-200 border-[2.5px] border-black rounded-full mb-4 shadow-[3px_3px_0px_#000] overflow-hidden">
+              <PopCard key={member.id} color="bg-indigo-100" className="p-6 flex flex-col items-center text-center">
+                <div className="w-20 h-20 bg-white border-[3px] border-black rounded-full mb-4 shadow-[3px_3px_0px_#000] overflow-hidden">
                   <img
                     src={`https://api.dicebear.com/7.x/fun-emoji/svg?seed=${member.avatar}`}
                     alt={member.name}
-                    className="w-full h-full object-cover scale-110"
+                    className="w-full h-full object-cover"
                   />
                 </div>
-                <h3 className="font-black text-lg">{member.name}</h3>
+                <h4 className="font-black text-lg mb-1">{member.name}</h4>
                 <p className="font-sketch text-sm font-bold text-amber-700">{member.role}</p>
               </PopCard>
             ))}
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* --- FAQ SECTION --- */}
-      <section id="faq" className="w-full py-20 px-6 max-w-4xl mx-auto space-y-12">
-        <div className="text-center">
-          <span className="font-sketch text-sm font-bold text-amber-700 uppercase tracking-widest">FREQUENTLY ASKED QUESTIONS</span>
-          <h2 className="text-3xl md:text-4xl font-black">Quiz Master FAQ</h2>
-        </div>
+        {/* --- 5. FAQ SECTION --- */}
+        <section id="faq" className="space-y-8 pt-6 mb-12">
+          <div className="text-center space-y-2">
+            <span className="font-sketch text-base font-bold uppercase tracking-widest text-amber-700">FREQUENTLY ASKED QUESTIONS</span>
+            <h2 className="text-3xl md:text-5xl font-black">
+              Got <span className="underline decoration-yellow-400 decoration-wavy">Questions?</span>
+            </h2>
+          </div>
 
-        <div className="space-y-4">
-          <PopCard color="bg-white" className="p-6">
-            <h3 className="font-black text-lg mb-2">What subjects and categories are supported?</h3>
-            <p className="font-sketch text-base text-zinc-700">
-              Quiz Master supports Basic Electrical Engineering (BEE), Computer Science Core, JavaScript & Web Technologies, and custom Groq AI Note generation!
-            </p>
-          </PopCard>
-
-          <PopCard color="bg-white" className="p-6">
-            <h3 className="font-black text-lg mb-2">How does the Groq AI Note Generator work?</h3>
-            <p className="font-sketch text-base text-zinc-700">
-              Paste your lecture notes or syllabus text in the AI Notes tab. Groq AI (`llama-3.1-8b-instant`) analyzes the key concepts and creates a custom multiple-choice quiz!
-            </p>
-          </PopCard>
-
-          <PopCard color="bg-white" className="p-6">
-            <h3 className="font-black text-lg mb-2">Are quiz scores saved automatically?</h3>
-            <p className="font-sketch text-base text-zinc-700">
-              Yes! Your scores, percentage accuracy, and completion timestamps are stored in `localStorage` and synchronized with the backend MongoDB database.
-            </p>
-          </PopCard>
-        </div>
-      </section>
+          <div className="space-y-4 max-w-3xl mx-auto">
+            {[
+              {
+                q: "What subjects and categories are supported?",
+                a: "Quiz Master covers Basic Electrical Engineering (BEE), JavaScript 30-Module Curriculum, Computer Science Core, Web Technologies, and General Knowledge."
+              },
+              {
+                q: "How does the Groq AI Note-to-Quiz Generator work?",
+                a: "You paste any lecture notes or syllabus excerpt into the AI tab. Groq Cloud Llama 3.1 8B Instant parses the concepts and outputs 5-10 unique multiple choice questions with explanations!"
+              },
+              {
+                q: "How are high scores and leaderboards synchronized?",
+                a: "Scores are saved to browser localStorage and synchronized with the Express backend REST API using live storage event listeners and 2.5s polling."
+              }
+            ].map((item, idx) => (
+              <PopCard key={idx} color="bg-white" className="p-6">
+                <h3 className="font-black text-lg mb-2 flex items-center gap-2">
+                  <HelpCircle className="w-5 h-5 text-amber-600 shrink-0" /> {item.q}
+                </h3>
+                <p className="font-sketch text-lg text-black/80 pl-7">{item.a}</p>
+              </PopCard>
+            ))}
+          </div>
+        </section>
+      </main>
 
       {/* --- FOOTER --- */}
-      <footer className="w-full border-t-[3px] border-black bg-[#fdfbf7] py-8 px-6 text-center">
-        <p className="font-sketch text-base font-bold text-zinc-700">
-          Quiz Master Platform • BEE Project Semester 5 • Built with React 18, Vite, TypeScript & Express
-        </p>
+      <footer className="border-t-[3px] border-black bg-white py-8 px-6 text-center font-sketch text-base font-bold text-black/70">
+        <p>Quiz Master Platform • BEE Semester 5 Evaluation Project • Built with React 18, Vite, TypeScript & Node.js</p>
       </footer>
     </div>
   );
