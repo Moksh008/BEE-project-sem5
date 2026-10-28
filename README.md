@@ -33,7 +33,7 @@ An interactive, modern, full-stack ready Quiz Platform designed for taking subje
 ### **Backend**
 - **Language & Runtime**: [TypeScript](https://www.typescriptlang.org/) + [Node.js](https://nodejs.org/) (v18+ recommended)
 - **Framework**: [Express.js v4](https://expressjs.com/)
-- **Development Tooling**: `tsx` watch mode for instant TypeScript hot reloading
+- **Development Tooling**: `tsx` watch mode for instant TypeScript hot reloading.
 
 ---
 
