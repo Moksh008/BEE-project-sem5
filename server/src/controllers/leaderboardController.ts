@@ -1,6 +1,9 @@
 import { Request, Response } from 'express';
 import { Score } from '../models/Score.js';
 
+/**
+ * Interface defining Leaderboard dataset item.
+ */
 export interface LeaderboardItem {
   username: string;
   category: string;
@@ -10,11 +13,21 @@ export interface LeaderboardItem {
   createdAt?: Date;
 }
 
+/**
+ * Controller Endpoint Function: Fetches top scholar rankings ordered by accuracy percentage & score.
+ * Concepts Used:
+ * - Query Limit Parameters (`parseInt(req.query.limit)`)
+ * - Mongoose Query Chaining (`.find().sort().limit().select().lean()`)
+ * - Curated Ranking Fallback Data
+ * 
+ * @route GET /api/leaderboard
+ */
 export async function getLeaderboard(req: Request, res: Response): Promise<void> {
   try {
     const limit = parseInt((req.query.limit as string) || '10', 10);
     let topScores: LeaderboardItem[] = [];
 
+    // Attempt MongoDB Query sorted descending by percentage (-1)
     try {
       topScores = await Score.find()
         .sort({ percentage: -1, score: -1, timeSpentSeconds: 1 })
@@ -25,6 +38,7 @@ export async function getLeaderboard(req: Request, res: Response): Promise<void>
       topScores = [];
     }
 
+    // In-memory fallback dataset
     if (!topScores || topScores.length === 0) {
       topScores = [
         { username: 'Riya Yadav', category: 'BEE Electrical', percentage: 98, score: 10, totalQuestions: 10 },

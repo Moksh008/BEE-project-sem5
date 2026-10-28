@@ -1,6 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import { getFirebaseAuth, isFirebaseInitialized } from '../config/firebase.js';
 
+/**
+ * Interface extending Express Request object with optional `user` authentication payload.
+ * Concept: TypeScript Interface Extension.
+ */
 export interface AuthenticatedRequest extends Request {
   user?: {
     uid: string;
@@ -9,6 +13,14 @@ export interface AuthenticatedRequest extends Request {
   };
 }
 
+/**
+ * Express Middleware Function: Verifies Firebase Bearer ID Token in Authorization header.
+ * Concepts Used:
+ * - Express Middleware (`req`, `res`, `next`)
+ * - Authorization Header Token Extraction (`Bearer <token>`)
+ * - Firebase ID Token Verification (`verifyIdToken`)
+ * - Guest/Fallback Fallthrough (`next()`)
+ */
 export async function verifyAuth(
   req: AuthenticatedRequest,
   res: Response,
@@ -16,6 +28,7 @@ export async function verifyAuth(
 ): Promise<void> {
   const authHeader = req.headers.authorization;
 
+  // 1. Fallback for unauthenticated/guest users
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     req.user = {
       uid: 'guest-player-uid',
@@ -25,9 +38,11 @@ export async function verifyAuth(
     return next();
   }
 
+  // 2. Extract JWT token string
   const token = authHeader.split('Bearer ')[1];
   const auth = getFirebaseAuth();
 
+  // 3. Verify Firebase Token using Admin SDK
   if (isFirebaseInitialized && auth) {
     try {
       const decodedToken = await auth.verifyIdToken(token);
@@ -42,6 +57,7 @@ export async function verifyAuth(
       return;
     }
   } else {
+    // Development mode fallback
     req.user = {
       uid: 'dev-user-uid',
       email: 'dev@bee-pro.edu',

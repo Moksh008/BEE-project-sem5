@@ -5,6 +5,15 @@ let firebaseApp: App | null = null;
 let firebaseAuth: Auth | null = null;
 let isFirebaseInitialized = false;
 
+/**
+ * Firebase Admin SDK Initialization Helper.
+ * Concepts Used:
+ * - Singleton Pattern (`getApps().length > 0`)
+ * - String Normalization (`replace(/\\n/g, '\n')`)
+ * - RSA Key Validation Safeguard
+ * 
+ * @returns Object containing initialized Firebase App and Auth instances.
+ */
 export function initFirebase(): { app: App | null; auth: Auth | null } {
   if (getApps().length > 0) {
     isFirebaseInitialized = true;
@@ -41,6 +50,10 @@ export function initFirebase(): { app: App | null; auth: Auth | null } {
   return { app: firebaseApp, auth: firebaseAuth };
 }
 
+/**
+ * Helper Getter Function for Firebase Admin Auth instance.
+ * @returns Initialized Auth instance or null.
+ */
 export function getFirebaseAuth(): Auth | null {
   if (!firebaseAuth && getApps().length > 0) {
     firebaseAuth = getAuth(getApps()[0]);
