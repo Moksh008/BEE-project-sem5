@@ -5,6 +5,7 @@ import { AuthProvider } from '../context/AuthContext';
 import DashboardPage from '../pages/DashboardPage';
 import LandingPage from '../pages/LandingPage';
 import LoginPage from '../pages/LoginPage';
+import ProfilePage from '../pages/ProfilePage';
 import QuizPage from '../pages/QuizPage';
 
 export default function App(): React.ReactElement {
@@ -19,6 +20,14 @@ export default function App(): React.ReactElement {
             element={
               <ProtectedRoute>
                 <DashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <ProfilePage />
               </ProtectedRoute>
             }
           />

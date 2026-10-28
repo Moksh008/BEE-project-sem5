@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { saveGeneratedQuestions } from '../config/seed.js';
 
 /**
  * Helper Function: Extracts key academic sentences and keywords from raw notes/syllabus text.
@@ -147,6 +148,8 @@ Follow this JSON schema strictly:
 
               if (Array.isArray(questionsArray) && questionsArray.length > 0) {
                 console.log(`✅ Groq AI Quiz generated successfully using model: ${modelName}`);
+                // Persist the AI question set into MongoDB (fire-and-forget)
+                void saveGeneratedQuestions(questionsArray, topic, difficulty, 'ai');
                 res.json({
                   source: 'groq-ai',
                   model: modelName,
@@ -226,7 +229,8 @@ Follow this JSON schema strictly:
       };
     });
 
-    // 5. Send JSON Response back to client
+    // 5. Send JSON Response back to client (and keep the generated set in MongoDB)
+    void saveGeneratedQuestions(generatedQuestions, topic, difficulty, 'ai');
     res.json({
       source: 'groq-fallback',
       topic,

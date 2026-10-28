@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Layout, PieChart, Users, Settings, MessageSquare, X, PenTool, User,
@@ -123,7 +124,7 @@ export function PopCard({ children, className, color = "bg-white" }: { children:
   );
 }
 
-export function SketchButton({ children, onClick, variant = "primary", className, icon: Icon }: { children: React.ReactNode; onClick?: () => void; variant?: string; className?: string; icon?: LucideIcon }) {
+export function SketchButton({ children, onClick, variant = "primary", className, icon: Icon, type = "button" }: { children: React.ReactNode; onClick?: () => void; variant?: string; className?: string; icon?: LucideIcon; type?: "button" | "submit" | "reset" }) {
   const variants = {
     primary: "bg-black text-white hover:bg-zinc-800",
     accent: "bg-[#fdba74] text-black hover:bg-[#fb923c]", // Orange
@@ -133,6 +134,7 @@ export function SketchButton({ children, onClick, variant = "primary", className
 
   return (
     <motion.button
+      type={type}
       onClick={onClick}
       whileTap={{ scale: 0.95 }}
       className={cn(
@@ -191,8 +193,8 @@ export function TimeToggle({ active, onChange }: { active: string; onChange: (va
 }
 
 // --- Navigation ---
-export function Sidebar({ active, setActive, is
-  , setIsOpen }: { active: string; setActive: (active: string) => void; isOpen: boolean; setIsOpen: (isOpen: boolean) => void }) {
+export function Sidebar({ active, setActive, isOpen, setIsOpen }: { active: string; setActive: (active: string) => void; isOpen: boolean; setIsOpen: (isOpen: boolean) => void }) {
+  const navigate = useNavigate();
   const items = [
     { id: "Dashboard", icon: Layout },
     { id: "Analytics", icon: PieChart },
@@ -248,12 +250,17 @@ export function Sidebar({ active, setActive, is
 
         <div className="mt-auto">
           <PopCard color="bg-blue-100" className="flex flex-col items-center text-center py-6">
-            <div className="w-16 h-16 bg-white border-[3px] border-black rounded-full mb-3 overflow-hidden">
-              <img src="https://api.dicebear.com/7.x/fun-emoji/svg?seed=Felix" alt="User" />
-            </div>
+            <button
+              type="button"
+              onClick={() => navigate('/profile')}
+              aria-label="Open profile"
+              className="w-16 h-16 bg-white border-[3px] border-black rounded-full mb-3 overflow-hidden cursor-pointer hover:scale-105 transition-transform"
+            >
+              <img src="https://api.dicebear.com/7.x/fun-emoji/svg?seed=Felix" alt="User" className="w-full h-full" />
+            </button>
             <h4 className="font-bold text-lg">Hey, Quiz Scholar!</h4>
             <p className="font-sketch text-zinc-600 mb-4">You have 4 tasks pending.</p>
-            <SketchButton variant="outline" className="w-full text-sm py-1" onClick={() => { }} icon={User}>View Profile</SketchButton>
+            <SketchButton variant="outline" className="w-full text-sm py-1" onClick={() => navigate('/profile')} icon={User}>View Profile</SketchButton>
           </PopCard>
         </div>
       </aside>

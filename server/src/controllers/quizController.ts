@@ -3,78 +3,7 @@ import { Question } from '../models/Question.js';
 import { Score } from '../models/Score.js';
 import { User } from '../models/User.js';
 import { AuthenticatedRequest } from '../middleware/auth.js';
-
-/**
- * Interface representing a seeded multiple-choice question item.
- * Concept: TypeScript Type Annotation & Interface Safety.
- */
-interface SeedQuestionItem {
-  category: string;
-  difficulty: 'easy' | 'medium' | 'hard';
-  question: string;
-  correctAnswer: string;
-  incorrectAnswers: string[];
-  explanation: string;
-  source: 'curated' | 'ai' | 'opentdb';
-}
-
-/** Curated question dataset for BEE (Basic Electrical Engineering) and CS domain fallback */
-const seedQuestions: SeedQuestionItem[] = [
-  {
-    category: 'bee',
-    difficulty: 'medium',
-    question: 'According to Kirchhoff\'s Current Law (KCL), the algebraic sum of currents entering a node is equal to:',
-    correctAnswer: 'Zero',
-    incorrectAnswers: ['Infinity', 'Sum of Voltages', 'Resistance times Current'],
-    explanation: 'KCL states that charge is conserved, so total current entering a junction equals total current leaving (algebraic sum = 0).',
-    source: 'curated',
-  },
-  {
-    category: 'bee',
-    difficulty: 'easy',
-    question: 'What is the unit of Electrical Resistance?',
-    correctAnswer: 'Ohm (Ω)',
-    incorrectAnswers: ['Volt (V)', 'Ampere (A)', 'Watt (W)'],
-    explanation: 'Resistance is measured in Ohms (Ω), named after Georg Simon Ohm.',
-    source: 'curated',
-  },
-  {
-    category: 'bee',
-    difficulty: 'medium',
-    question: 'In an ideal transformer, which property remains constant between primary and secondary windings?',
-    correctAnswer: 'Power (Apparent Power kVA)',
-    incorrectAnswers: ['Current', 'Voltage', 'Turn count'],
-    explanation: 'An ideal transformer is 100% efficient, preserving real and apparent power (V1 * I1 = V2 * I2).',
-    source: 'curated',
-  },
-  {
-    category: 'bee',
-    difficulty: 'hard',
-    question: 'What is the phase angle difference between voltage and current in a purely capacitive AC circuit?',
-    correctAnswer: 'Current leads Voltage by 90°',
-    incorrectAnswers: ['Current lags Voltage by 90°', 'In phase (0°)', '180° out of phase'],
-    explanation: 'In a purely capacitive circuit, current leads voltage by 90 degrees (ICE: In Capacitance, E lags I).',
-    source: 'curated',
-  },
-  {
-    category: 'cs',
-    difficulty: 'easy',
-    question: 'Which data structure follows the Last-In, First-Out (LIFO) principle?',
-    correctAnswer: 'Stack',
-    incorrectAnswers: ['Queue', 'Linked List', 'Binary Tree'],
-    explanation: 'A Stack pushes and pops elements from the top, adhering to LIFO order.',
-    source: 'curated',
-  },
-  {
-    category: 'web',
-    difficulty: 'medium',
-    question: 'Which HTTP status code signifies "200 OK"?',
-    correctAnswer: '200',
-    incorrectAnswers: ['404', '500', '301'],
-    explanation: '200 OK indicates the HTTP request succeeded.',
-    source: 'curated',
-  },
-];
+import { seedQuestions } from '../data/questionBank.js';
 
 /**
  * Controller Endpoint Function: Fetches quiz questions by category and difficulty.
@@ -124,6 +53,45 @@ export async function getQuestions(req: Request, res: Response): Promise<void> {
 
       res.json({ source: 'curated-fallback', questions: result });
       return;
+    }
+
+    // 3b. Top-up: the database holds fewer matching questions than requested,
+    // so cycle through the curated bank until the quiz has `count` questions.
+    // Also re-sync any new questions the backend admin re-inserts while a quiz is open.
+    if (process.env.SEED_QUESTIONS === 'sync') {
+      try {
+        const fresh = await Question.find({ category, difficulty } as any).limit(count).lean();
+        if (fresh.length > questions.length) {
+          const seen = new Set(questions.map((q: any) => String(q.question)));
+          for (const item of fresh) {
+            if (questions.length >= count) break;
+            if (!seen.has(String(item.question))) {
+              questions.push(item);
+              seen.add(String(item.question));
+            }
+          }
+        }
+      } catch {
+        // Ignore sync errors so the quiz never breaks.
+      }
+    }
+    if (questions.length < count) {
+      const seen = new Set(questions.map((q: any) => String(q.question)));
+      const sameDifficulty = seedQuestions.filter(
+        (q) => q.category === category && q.difficulty === difficulty && !seen.has(q.question)
+      );
+      const otherDifficulty = seedQuestions.filter(
+        (q) => q.category === category && q.difficulty !== difficulty && !seen.has(q.question)
+      );
+      const filler = [...sameDifficulty, ...otherDifficulty];
+      const pool = filler.length > 0 ? filler : seedQuestions;
+
+      let i = 0;
+      while (questions.length < count) {
+        const item = pool[i % pool.length];
+        questions.push({ id: `seed-${questions.length + 1}`, ...item });
+        i += 1;
+      }
     }
 
     res.json({ source: 'database', questions });

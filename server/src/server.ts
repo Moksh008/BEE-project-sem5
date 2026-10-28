@@ -5,6 +5,7 @@ dotenv.config();
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import { connectDB } from './config/db.js';
+import { seedQuestionBank } from './config/seed.js';
 import { initFirebase } from './config/firebase.js';
 import authRoutes from './routes/authRoutes.js';
 import quizRoutes from './routes/quizRoutes.js';
@@ -22,9 +23,13 @@ import aiRoutes from './routes/aiRoutes.js';
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Initialize Database & Firebase Admin SDK Services
-connectDB();
+// Initialize Database & Firebase Admin SDK Services, then seed the question bank
 initFirebase();
+connectDB().then((connected: boolean) => {
+  if (connected) {
+    void seedQuestionBank();
+  }
+});
 
 // Middlewares: Enable Cross-Origin Resource Sharing (CORS) & JSON Body Parser
 app.use(cors());

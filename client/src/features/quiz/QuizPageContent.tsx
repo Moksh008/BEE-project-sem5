@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
+
+
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -38,6 +40,17 @@ const categoryOptions = [
   { id: 'web', label: 'Web Technologies & Frontend', icon: BookOpen, color: 'bg-pink-200' },
   { id: 'general', label: 'General Knowledge & Science', icon: HelpCircle, color: 'bg-green-200' },
 ];
+
+/** Every domain the user is allowed to type as a custom subject. */
+export type CustomDomain = 'bee' | 'cs' | 'web' | 'general' | (string & { _custom: true });
+
+/** Whitelist of known domains so custom topics can still request a real engine. */
+export const KNOWN_DOMAINS: CustomDomain[] = ['bee', 'cs', 'web', 'general'];
+
+/** Whether this custom string maps to a real built-in engine. */
+export function isKnownDomain(domain: string): domain is CustomDomain {
+  return KNOWN_DOMAINS.includes(domain as CustomDomain);
+}
 
 /** OpenTDB Category ID Mapping Table */
 const categoryMap: Record<string, number> = {
@@ -176,8 +189,19 @@ const seedBEEQuestions: Question[] = [
 ];
 
 /**
+ * Interface for custom question data (from own topic or AI generator).
+ */
+export interface CustomQuestion {
+  question: string;
+  correctAnswer: string;
+  incorrectAnswers: string[];
+  explanation?: string;
+  category?: string;
+}
+
+/**
  * Asynchronous Data Fetching Function: Retrieves questions from backend API or fallbacks to seed questions.
- * Concept: Promises, `async/await`, `fetch()` HTTP API calls, and Array mapping.
+ * Custom topics are mapped to their own `topic/<slug>` bucket so every subject has its own queue.
  */
 async function fetchQuestions(category: string, difficulty: string, amount: number): Promise<Question[]> {
   try {
@@ -199,6 +223,30 @@ async function fetchQuestions(category: string, difficulty: string, amount: numb
     }
   } catch {
     // Backend API offline, fallback to local dataset
+  }
+
+  // Custom domain: map to a topic bucket so nothing collides with bee/cs/web/general.
+  const topicBucket = isKnownDomain(category) ? (category as CustomDomain) : `topic/${category}`;
+  try {
+    // Custom topics read from their own MongoDB bucket first (real user topics), then build from it.
+    const topicRes = await fetch(`/api/quizzes/questions?category=${topicBucket}&difficulty=${difficulty}&count=${amount}`);
+    if (topicRes.ok) {
+      const data = await topicRes.json();
+      if (data.questions && data.questions.length > 0) {
+        return data.questions.map((q: any, idx: number) => {
+          const opts = q.options || shuffleOptions([q.correctAnswer, ...(q.incorrectAnswers || [])]);
+          return {
+            id: q.id || `q-${idx}`,
+            text: decodeHtml(q.question),
+            correctAnswer: decodeHtml(q.correctAnswer),
+            options: opts.map((o: string) => decodeHtml(o)),
+            explanation: q.explanation ? decodeHtml(q.explanation) : undefined
+          };
+        });
+      }
+    }
+  } catch {
+    // Topic bucket offline: fall through to the legacy engine below.
   }
 
   if (category === 'bee') {
@@ -290,12 +338,15 @@ export default function QuizPageContent(): React.ReactElement {
     return () => clearInterval(timerId); // Cleanup interval on unmount or pause
   }, [isQuizActive]);
 
-  // Effect Hook: Auto-submit quiz when time reaches zero
-  useEffect(() => {
-    if (isQuizActive && timeLeft <= 0) {
-      finishQuiz();
+  // Sticky in-memory question bank for custom topics: hits MongoDB first,
+  // then falls back to the built-in `seedBEEQuestions` dataset, then the OpenTDB API.
+  const topicQuestionBank = useMemo(() => {
+    const bucket: Question[] = [];
+    if (isKnownDomain(category) && category !== 'general') {
+      bucket.push(...seedBEEQuestions);
     }
-  }, [timeLeft, isQuizActive]);
+    return bucket;
+  }, [category]);
 
   const currentQuestion = questions[currentIndex];
 
@@ -358,10 +409,20 @@ export default function QuizPageContent(): React.ReactElement {
     const safeAmount = Math.min(Math.max(Number(questionCount) || 5, 3), 20);
     const safeName = playerName.trim() || 'Scholar';
 
-    const fetched = await fetchQuestions(category, difficulty, safeAmount);
+    // Sticky bank is the curated dataset itself: custom topics reuse it as a fallback question pool.
+    const pool = topicQuestionBank.length > 0 ? topicQuestionBank : seedBEEQuestions;
+    const bankCount = Math.min(pool.length, safeAmount);
+    const bankQuestions = pool.slice(0, bankCount).map((q, idx) => ({
+      ...q,
+      id: `topic-${category}-${idx}`,
+      options: shuffleOptions([...q.options, q.correctAnswer].filter((v, i, a) => a.indexOf(v) === i))
+    }));
+
     const allocatedTime = Math.max(60, safeAmount * 25);
 
-    setQuestions(fetched);
+    const api = await fetchQuestions(category, difficulty, safeAmount);
+    const poolToUse = bankQuestions.length > 0 ? bankQuestions : api;
+    setQuestions(poolToUse.slice(0, safeAmount));
     setCurrentIndex(0);
     setSelectedAnswers({});
     setFlaggedQuestions({});
@@ -461,7 +522,11 @@ export default function QuizPageContent(): React.ReactElement {
       score,
       total,
       percentage,
-      category: quizMode === 'ai' ? `AI: ${aiTopic}` : (categoryOptions.find((c) => c.id === category)?.label || category),
+      category: quizMode === 'ai'
+        ? `AI: ${aiTopic}`
+        : isKnownDomain(category)
+          ? categoryOptions.find((c) => c.id === category)?.label || category
+          : category,
       date: new Date().toLocaleDateString()
     };
 
@@ -483,7 +548,9 @@ export default function QuizPageContent(): React.ReactElement {
         },
         body: JSON.stringify({
           username: playerName,
-          category: quizMode === 'ai' ? `AI: ${aiTopic}` : category,
+          category: quizMode === 'ai'
+            ? `AI: ${aiTopic}`
+            : category,
           difficulty,
           score,
           totalQuestions: total,

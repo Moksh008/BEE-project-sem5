@@ -15,26 +15,73 @@ import { HandDrawnFilters } from '../components/ui/HandDrawn';
  */
 export default function LoginPage(): React.ReactElement {
   const navigate = useNavigate();
-  const { login, loginWithGoogle } = useAuth();
+  const { loginWithGoogle, loginWithEmail } = useAuth();
 
-  const [username, setUsername] = useState('Player');
-  const [password, setPassword] = useState('password123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoadingGoogle, setIsLoadingGoogle] = useState(false);
+  const [isLoadingEmail, setIsLoadingEmail] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
+  /** Helper: Turns Firebase auth error codes into readable messages. */
+  function readableAuthError(err: any): string {
+    switch (err?.code) {
+      case 'auth/invalid-email':
+        return 'Please enter a valid email address.';
+      case 'auth/weak-password':
+        return 'Password must be at least 6 characters long.';
+      case 'auth/invalid-credential':
+      case 'auth/wrong-password':
+        return 'Incorrect email or password. Please try again.';
+      case 'auth/email-already-in-use':
+        return 'An account with this email already exists. Use its password to sign in.';
+      case 'auth/too-many-requests':
+        return 'Too many attempts. Please wait a moment and try again.';
+      case 'auth/operation-not-allowed':
+        return 'Email/Password sign-in is disabled. Enable it in Firebase Console → Authentication → Sign-in method.';
+      case 'auth/network-request-failed':
+        return 'Network error. Please check your connection and try again.';
+      default:
+        return err?.message || 'Sign-in failed. Please try again.';
+    }
+  }
+
   /**
-   * Guest Username Form Handler.
+   * Email + Password Form Handler.
+   * Concept: Async form submission with credential verification.
    */
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isLoadingEmail) return;
     setErrorMessage('');
 
-    if (!username.trim() || !password.trim()) {
+    const trimmedEmail = email.trim();
+
+    if (!trimmedEmail || !password) {
+      setErrorMessage('Enter your email and password to continue.');
       return;
     }
 
-    login(username);
-    navigate('/dashboard', { replace: true });
+    if (!/^\S+@\S+\.\S+$/.test(trimmedEmail)) {
+      setErrorMessage('Please enter a valid email address.');
+      return;
+    }
+
+    if (password.length < 6) {
+      setErrorMessage('Password must be at least 6 characters long.');
+      return;
+    }
+
+    setIsLoadingEmail(true);
+    try {
+      await loginWithEmail(trimmedEmail, password);
+      navigate('/dashboard', { replace: true });
+    } catch (err: any) {
+      console.error('Email Auth Failed:', err);
+      setErrorMessage(readableAuthError(err));
+    } finally {
+      setIsLoadingEmail(false);
+    }
   }
 
   /**
@@ -49,7 +96,9 @@ export default function LoginPage(): React.ReactElement {
     } catch (err: any) {
       console.error('Google Auth Failed:', err);
       setErrorMessage(
-        err?.message || 'Google sign-in failed. Please check popup permissions and try again.'
+        err?.code === 'auth/popup-closed-by-user'
+          ? 'Google sign-in was cancelled. Please try again.'
+          : err?.message || 'Google sign-in failed. Please check popup permissions and try again.'
       );
     } finally {
       setIsLoadingGoogle(false);
@@ -145,18 +194,18 @@ export default function LoginPage(): React.ReactElement {
 
             <form className="space-y-6" onSubmit={handleSubmit}>
               <div>
-                <label htmlFor="username" className="block font-black text-sm uppercase tracking-wider mb-2">
-                  Student Username
+                <label htmlFor="email" className="block font-black text-sm uppercase tracking-wider mb-2">
+                  Student Email
                 </label>
                 <div className="relative">
                   <User size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-black/60" />
                   <input
-                    id="username"
-                    type="text"
-                    value={username}
-                    onChange={(event) => setUsername(event.target.value)}
-                    maxLength={20}
-                    placeholder="Enter your student handle"
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    autoComplete="email"
+                    placeholder="you@example.com"
                     className="w-full border-[3px] border-black px-4 py-3.5 pl-11 bg-white font-bold text-base shadow-[2px_2px_0px_#000] shape-wobble-sm focus:outline-none focus:ring-2 focus:ring-black"
                     required
                   />
@@ -174,6 +223,7 @@ export default function LoginPage(): React.ReactElement {
                     type="password"
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
+                    autoComplete="current-password"
                     placeholder="Enter your password"
                     className="w-full border-[3px] border-black px-4 py-3.5 pl-11 bg-white font-bold text-base shadow-[2px_2px_0px_#000] shape-wobble-sm focus:outline-none focus:ring-2 focus:ring-black"
                     required
@@ -188,7 +238,7 @@ export default function LoginPage(): React.ReactElement {
                   icon={ArrowRight}
                   className="w-full text-lg py-4 bg-yellow-400 hover:bg-yellow-500 text-black flex justify-center items-center"
                 >
-                  Sign In to Dashboard
+                  {isLoadingEmail ? 'Verifying Credentials...' : 'Sign In to Dashboard'}
                 </SketchButton>
               </div>
             </form>
