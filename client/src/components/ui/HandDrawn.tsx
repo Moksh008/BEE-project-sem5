@@ -29,7 +29,7 @@ export function HandDrawnFilters() {
 // --- 2. COMPONENTS ---
 
 // A. Highlighter Effect (Highlights text on scroll)
-export function Highlight({ children, color = "#ffeb3b" }: { children: React.ReactNode, color?: string }) {
+export function Highlight({ children, color = "#FFD43B" }: { children: React.ReactNode, color?: string }) {
     const ref = useRef(null);
     const isInView = useInView(ref, { once: true, margin: "-10%" });
 
@@ -75,10 +75,10 @@ export function SketchButton({ children, className, type = "button" }: { childre
 
             {/* The Scribble Fill (Appears on Hover) */}
             <motion.div
-                className="absolute inset-2 -z-10 bg-black opacity-0"
+                className="absolute inset-2 -z-10 bg-[#FFD43B] opacity-0"
                 variants={{
                     hover: {
-                        opacity: 0.1,
+                        opacity: 0.35,
                         scale: 1.05,
                         transition: { duration: 0.2 }
                     }
@@ -125,7 +125,7 @@ export function SketchCard({ title, icon: Icon, delay }: { title: string, icon: 
 // D. Drawn Arrow (Decoration)
 export function DrawnArrow() {
     return (
-        <svg width="100" height="100" viewBox="0 0 100 100" className="absolute -right-24 top-0 hidden md:block rotate-12">
+        <svg width="100" height="100" viewBox="0 0 100 100" className="absolute -right-24 top-0 hidden xl:block rotate-12">
             <motion.path
                 d="M10,50 Q50,10 90,50 M60,50 L90,50 L80,20"
                 fill="none"

@@ -213,11 +213,11 @@ export function Sidebar({ active, setActive, isOpen, setIsOpen }: { active: stri
       </AnimatePresence>
 
       <aside className={cn(
-        "fixed lg:static top-0 left-0 z-50 h-screen w-72 bg-[#fdfbf7] border-r-[3px] border-black p-6 transition-transform lg:translate-x-0 flex flex-col gap-8",
+        "fixed lg:static top-0 left-0 z-50 h-screen w-72 shrink-0 bg-[#fdfbf7] border-r-[3px] border-black p-6 transition-transform lg:translate-x-0 flex flex-col gap-8 overflow-y-auto",
         isOpen ? "translate-x-0" : "-translate-x-full"
       )}>
-        <div className="flex items-center gap-3 px-2">
-          <div className="w-12 h-12 bg-purple-400 border-[3px] border-black rounded-full flex items-center justify-center shadow-[2px_2px_0px_#000]">
+        <div className="flex items-center gap-3 px-2 shrink-0">
+          <div className="w-12 h-12 shrink-0 bg-purple-400 border-[3px] border-black rounded-full flex items-center justify-center shadow-[2px_2px_0px_#000]">
             <PenTool className="w-6 h-6 text-white" />
           </div>
           <span className="font-sketch text-3xl font-bold">QuizMaster</span>
@@ -226,7 +226,7 @@ export function Sidebar({ active, setActive, isOpen, setIsOpen }: { active: stri
           </button>
         </div>
 
-        <nav className="flex flex-col gap-3">
+        <nav className="flex flex-col gap-3 shrink-0">
           {items.map((item) => {
             const isActive = active === item.id;
             return (
@@ -245,7 +245,7 @@ export function Sidebar({ active, setActive, isOpen, setIsOpen }: { active: stri
           })}
         </nav>
 
-        <div className="mt-auto">
+        <div className="mt-auto pt-2 shrink-0">
           <PopCard color="bg-blue-100" className="flex flex-col items-center text-center py-6">
             <div className="w-16 h-16 bg-white border-[3px] border-black rounded-full mb-3 overflow-hidden">
               <img src="https://api.dicebear.com/7.x/fun-emoji/svg?seed=Felix" alt="User" />
@@ -358,18 +358,18 @@ export function OverviewView({ timeRange }: { timeRange: string }) {
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-20">
       {/* Live Stat Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
         {liveStats.map((stat, i) => (
-          <PopCard key={i} color={stat.color} className="flex flex-col justify-between h-40">
-            <div className="flex justify-between items-start">
-              <span className="font-sketch text-xl font-bold">{stat.label}</span>
-              <div className="bg-black/10 p-2 rounded-lg border-2 border-black/10">
+          <PopCard key={i} color={stat.color} className="flex min-h-[9.5rem] flex-col justify-between gap-3">
+            <div className="flex justify-between items-start gap-3">
+              <span className="font-sketch text-lg sm:text-xl font-bold leading-tight">{stat.label}</span>
+              <div className="shrink-0 bg-black/10 p-2 rounded-lg border-2 border-black/10">
                 <stat.icon className="w-6 h-6 text-black" />
               </div>
             </div>
-            <div className="flex items-baseline justify-between">
-              <h2 className="text-5xl font-black tracking-tight">{stat.val}</h2>
-              <span className="font-sketch text-sm font-bold text-black/70 flex items-center gap-1">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+              <h2 className="text-4xl sm:text-5xl font-black tracking-tight leading-none">{stat.val}</h2>
+              <span className="font-sketch text-sm font-bold text-black/70 flex items-center gap-1 whitespace-nowrap">
                 <Activity size={14} className="animate-pulse text-green-600" /> Live Sync
               </span>
             </div>
@@ -377,15 +377,15 @@ export function OverviewView({ timeRange }: { timeRange: string }) {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 gap-8 xl:grid-cols-3">
         {/* Chart */}
-        <PopCard className="lg:col-span-2 min-h-[400px] bg-white" color="bg-white">
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <h3 className="text-2xl font-black">Student Activity Metrics</h3>
-              <p className="font-sketch text-zinc-500 text-lg">Real-time performance accuracy trend over time!</p>
+        <PopCard className="min-h-[400px] bg-white xl:col-span-2" color="bg-white">
+          <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
+            <div className="min-w-0">
+              <h3 className="text-xl sm:text-2xl font-black leading-tight">Student Activity Metrics</h3>
+              <p className="font-sketch text-zinc-500 text-base sm:text-lg">Real-time performance accuracy trend over time!</p>
             </div>
-            <div className="flex items-center gap-1 text-xs font-bold px-3 py-1 bg-green-200 border-[2px] border-black shape-wobble-sm">
+            <div className="shrink-0 flex items-center gap-1 text-xs font-bold px-3 py-1 bg-green-200 border-[2px] border-black shape-wobble-sm">
               <span className="w-2 h-2 rounded-full bg-green-500 animate-ping" /> Realtime Active
             </div>
           </div>
@@ -429,9 +429,9 @@ export function OverviewView({ timeRange }: { timeRange: string }) {
 
         {/* Live Recent Activity Log */}
         <PopCard className="bg-[#fde047] flex flex-col" color="bg-[#fde047]">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-2xl font-black">Recent Quiz Sessions</h3>
-            <div className="bg-black text-white px-2 py-1 font-bold rounded text-xs -rotate-3 flex items-center gap-1">
+          <div className="flex items-start justify-between gap-3 mb-4">
+            <h3 className="text-xl sm:text-2xl font-black leading-tight">Recent Quiz Sessions</h3>
+            <div className="shrink-0 bg-black text-white px-2 py-1 font-bold rounded text-xs -rotate-3 flex items-center gap-1">
               <Clock size={12} /> LIVE
             </div>
           </div>
@@ -446,8 +446,8 @@ export function OverviewView({ timeRange }: { timeRange: string }) {
                   <div className={cn("w-6 h-6 border-2 border-black rounded-full flex items-center justify-center transition-colors group-hover:bg-black group-hover:text-white")}>
                     <CheckCircle2 className="w-4 h-4 opacity-0 group-hover:opacity-100" />
                   </div>
-                  <span className="font-sketch text-xl leading-none pt-1">{t.text}</span>
-                  <span className={cn("ml-auto text-[10px] font-bold border border-black px-1 rounded uppercase", t.color)}>
+                  <span className="font-sketch text-lg sm:text-xl leading-tight min-w-0">{t.text}</span>
+                  <span className={cn("ml-auto shrink-0 text-[10px] font-bold border border-black px-1 rounded uppercase", t.color)}>
                     {t.tag}
                   </span>
                 </div>
@@ -458,12 +458,12 @@ export function OverviewView({ timeRange }: { timeRange: string }) {
                   key={idx}
                   className="flex items-center justify-between bg-white p-3 border-2 border-black rounded-xl shadow-[2px_2px_0px_#000]"
                 >
-                  <div>
-                    <div className="font-black text-sm">{attempt.name}</div>
-                    <div className="font-sketch text-xs text-zinc-600">{attempt.category || 'Quiz Challenge'}</div>
+                  <div className="min-w-0">
+                    <div className="font-black text-sm truncate">{attempt.name}</div>
+                    <div className="font-sketch text-xs text-zinc-600 truncate">{attempt.category || 'Quiz Challenge'}</div>
                   </div>
-                  <div className="text-right">
-                    <span className="font-black text-amber-600 text-sm">
+                  <div className="text-right shrink-0">
+                    <span className="font-black text-amber-600 text-sm whitespace-nowrap">
                       {attempt.score}/{attempt.total} ({attempt.percentage}%)
                     </span>
                   </div>
@@ -546,10 +546,10 @@ export function AnalyticsView({ timeRange }: { timeRange: string }) {
 export function TeamView() {
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-20">
-      <h3 className="text-3xl font-black mb-6 flex items-center gap-2"><Users className="w-8 h-8" /> Leaderboard Top Scholars</h3>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <h3 className="text-2xl sm:text-3xl font-black mb-6 flex items-center gap-2"><Users className="w-8 h-8 shrink-0" /> Leaderboard Top Scholars</h3>
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
         {teamMembers.map((m) => (
-          <PopCard key={m.id} color="bg-indigo-100" className="flex flex-col items-center">
+          <PopCard key={m.id} color="bg-indigo-100" className="flex flex-col items-center text-center">
             <div className="w-24 h-24 bg-white border-[3px] border-black rounded-full mb-4 shadow-[4px_4px_0px_#000] overflow-hidden">
               <img src={`https://api.dicebear.com/7.x/fun-emoji/svg?seed=${m.avatar}`} alt="Avatar" className="w-full h-full object-cover scale-110" />
             </div>
@@ -560,12 +560,12 @@ export function TeamView() {
         ))}
       </div>
 
-      <PopCard color="bg-[#fde047]" className="flex items-center justify-between p-8 border-dashed">
-        <div>
+      <PopCard color="bg-[#fde047]" className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-8 border-dashed">
+        <div className="min-w-0">
           <h4 className="text-2xl font-black">Invite Study Partners</h4>
           <p className="font-sketch text-lg">Send an invite link to study together and challenge each other in live quizzes.</p>
         </div>
-        <SketchButton icon={Plus} variant="primary" onClick={() => { }}>Generate Link</SketchButton>
+        <SketchButton icon={Plus} variant="primary" onClick={() => { }} className="shrink-0 self-start sm:self-auto">Generate Link</SketchButton>
       </PopCard>
     </div>
   );
@@ -574,18 +574,18 @@ export function TeamView() {
 export function MessagesView() {
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-20">
-      <h3 className="text-3xl font-black mb-6 flex items-center gap-2"><MessageSquare className="w-8 h-8" /> Discussion Forum</h3>
+      <h3 className="text-2xl sm:text-3xl font-black mb-6 flex items-center gap-2"><MessageSquare className="w-8 h-8 shrink-0" /> Discussion Forum</h3>
       {[1, 2, 3].map(i => (
-        <PopCard key={i} color="bg-white" className="flex gap-4">
-          <div className="w-16 h-16 bg-pink-200 border-[3px] border-black rounded-full shrink-0 shadow-[2px_2px_0px_#000] overflow-hidden">
+        <PopCard key={i} color="bg-white" className="flex flex-col gap-4 sm:flex-row">
+          <div className="w-14 h-14 sm:w-16 sm:h-16 shrink-0 bg-pink-200 border-[3px] border-black rounded-full shadow-[2px_2px_0px_#000] overflow-hidden">
             <img src={`https://api.dicebear.com/7.x/fun-emoji/svg?seed=Chat${i}`} alt="Avatar" className="w-full h-full" />
           </div>
-          <div className="flex-1">
-            <div className="flex justify-between items-center mb-2">
-              <h4 className="font-bold text-xl">BEE Study Group #{i}</h4>
-              <span className="font-sketch text-zinc-500">{i}h ago</span>
+          <div className="min-w-0 flex-1">
+            <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+              <h4 className="min-w-0 font-bold text-lg sm:text-xl">BEE Study Group #{i}</h4>
+              <span className="shrink-0 font-sketch text-zinc-500">{i}h ago</span>
             </div>
-            <p className="font-sketch text-lg p-4 bg-zinc-100 border-[3px] border-black shape-wobble-sm shadow-[2px_2px_0px_#000] relative">
+            <p className="font-sketch text-base sm:text-lg p-3 sm:p-4 bg-zinc-100 border-[3px] border-black shape-wobble-sm shadow-[2px_2px_0px_#000] relative">
               "Hey, the new timed quiz challenge is so fun! I scored 95% on the Web Technologies quiz. Who wants to challenge next?"
               <span className="absolute w-4 h-4 bg-zinc-100 border-l-[3px] border-b-[3px] border-black -left-2 top-4 rotate-45 z-[-1]" />
             </p>

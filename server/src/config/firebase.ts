@@ -34,8 +34,27 @@ export function initFirebase(): { app: App | null; auth: Auth | null } {
     } catch (error) {
       console.error('❌ Firebase Initialization Error:', error);
     }
+  } else if (projectId) {
+    // No usable service-account key in the environment. Initialize with the
+    // project id alone: verifyIdToken() only needs Google's public x509 certs
+    // for the project, so ID-token verification still works without a private key.
+    try {
+      firebaseApp = initializeApp({ projectId });
+      firebaseAuth = getAuth(firebaseApp);
+      isFirebaseInitialized = true;
+      console.log(
+        `✅ Firebase Admin SDK Initialized (project: ${projectId}, ID-token verification active).`
+      );
+      if (!isValidPrivateKey) {
+        console.log(
+          'ℹ️  No service-account key set — verification only. Add FIREBASE_PRIVATE_KEY to enable admin writes.'
+        );
+      }
+    } catch (error) {
+      console.error('❌ Firebase Initialization Error:', error);
+    }
   } else {
-    console.warn('⚠️  Firebase Admin credentials missing or invalid in process.env. Auth fallback mode enabled.');
+    console.warn('⚠️  FIREBASE_PROJECT_ID missing. Auth fallback mode enabled.');
   }
 
   return { app: firebaseApp, auth: firebaseAuth };

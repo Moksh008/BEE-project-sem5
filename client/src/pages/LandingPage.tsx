@@ -18,7 +18,7 @@ export default function LandingPage(): React.ReactElement {
   const yDoodle = useTransform(scrollYProgress, [0, 1], [0, -100]);
 
   return (
-    <main ref={containerRef} className="relative min-h-screen w-full overflow-hidden bg-[#fdfbf7] font-sans text-[#2d2d2d] selection:bg-[#ffeb3b]">
+    <main ref={containerRef} className="relative min-h-screen w-full overflow-hidden bg-[#FFFEF8] font-sans text-[#222222] selection:bg-[#FFD43B]">
       <HandDrawnFilters />
 
       {/* Background Texture (Grid Paper) */}
@@ -34,13 +34,13 @@ export default function LandingPage(): React.ReactElement {
       {/* --- NAVBAR --- */}
       <nav className="fixed top-0 z-50 flex w-full items-center justify-between px-8 py-6 backdrop-blur-sm">
         <div className="text-2xl font-bold tracking-tight">
-          Quiz<span className="text-blue-600">Master</span>
+          Quiz<span className="text-[#222222]">Master</span>
         </div>
         <div className="hidden gap-8 md:flex font-medium">
           {['Quizzes', 'Features', 'Leaderboard', 'Pricing'].map((item) => (
-            <a key={item} href={`#${item.toLowerCase()}`} className="relative group">
+            <a key={item} href={`#${item.toLowerCase()}`} className="relative group px-2 -mx-2 rounded transition-colors hover:bg-[#FFD43B]/40">
               {item}
-              <span className="absolute -bottom-1 left-0 h-0.5 w-0 bg-black transition-all group-hover:w-full rounded-full" />
+              <span className="absolute -bottom-1 left-0 h-0.5 w-0 bg-[#FFD43B] transition-all group-hover:w-full rounded-full" />
             </a>
           ))}
         </div>
@@ -58,9 +58,9 @@ export default function LandingPage(): React.ReactElement {
         </div>
 
         <div className="relative max-w-4xl">
-          <h1 className="mb-6 text-4xl font-black leading-[1.2] tracking-tight md:text-6xl">
+          <h1 className="mb-6 text-4xl font-black leading-[1.2] tracking-tight md:text-5xl xl:text-6xl">
             Master Every Quiz with <br />
-            <Highlight color="#a5f3fc">Real-Time</Highlight> Speed.
+            <Highlight color="#FFD43B">Real-Time</Highlight> Speed.
           </h1>
           <DrawnArrow />
         </div>
@@ -107,7 +107,7 @@ export default function LandingPage(): React.ReactElement {
           {/* Sticky Note */}
           <motion.div
             whileHover={{ rotate: 0, scale: 1.02 }}
-            className="relative rotate-1 bg-[#ffeb3b] p-12 shadow-[4px_4px_10px_rgba(0,0,0,0.1)]"
+            className="relative rotate-1 bg-[#FFD43B] p-12 shadow-[4px_4px_10px_rgba(0,0,0,0.1)]"
             style={{ filter: "url(#rough-paper)" }}
           >
             {/* Pin */}
@@ -153,7 +153,7 @@ export default function LandingPage(): React.ReactElement {
       </section>
 
       {/* --- NEW SECTION: TRUSTED BY MARQUEE --- */}
-      <section className="relative z-10 overflow-hidden border-y-2 border-black bg-[#ffeb3b] py-12" style={{ filter: "url(#rough-paper)" }}>
+      <section className="relative z-10 overflow-hidden border-y-2 border-black bg-[#FFD43B] py-12" style={{ filter: "url(#rough-paper)" }}>
         <div className="flex whitespace-nowrap">
           <motion.div
             animate={{ x: [0, -1000] }}
@@ -178,7 +178,7 @@ export default function LandingPage(): React.ReactElement {
       <section className="relative z-10 px-6 py-32" id="leaderboard">
         <div className="mx-auto max-w-6xl">
           <div className="mb-20 text-center">
-            <h2 className="text-5xl font-black md:text-6xl">Quiz Engine <Highlight color="#fbcfe8">Showcase.</Highlight></h2>
+            <h2 className="text-5xl font-black md:text-6xl">Quiz Engine <Highlight color="#FFD43B">Showcase.</Highlight></h2>
           </div>
 
           <div className="grid grid-cols-1 gap-12 md:grid-cols-2">
@@ -211,7 +211,7 @@ export default function LandingPage(): React.ReactElement {
       <section className="relative z-10 bg-[#fffdf5] px-6 py-32 border-t border-dashed border-black/20" id="pricing">
         <div className="mx-auto max-w-5xl">
           <div className="mb-20 text-center">
-            <h2 className="text-4xl font-bold md:text-5xl">Simple <Highlight color="#bbf7d0">Pricing.</Highlight></h2>
+            <h2 className="text-4xl font-bold md:text-5xl">Simple <Highlight color="#FFD43B">Pricing.</Highlight></h2>
           </div>
 
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
@@ -237,7 +237,7 @@ export default function LandingPage(): React.ReactElement {
             {/* Pro Plan */}
             <motion.div
               whileHover={{ scale: 1.02 }}
-              className="relative border-4 border-black bg-black text-white p-12 text-center shadow-[12px_12px_0px_#ffeb3b]"
+              className="relative border-4 border-black bg-black text-white p-12 text-center shadow-[12px_12px_0px_#FFD43B]"
               style={{ filter: "url(#rough-paper)" }}
             >
               <div className="absolute -top-6 right-8 rotate-12 rounded-full border-2 border-black bg-white px-4 py-1 text-sm font-bold text-black shadow-[4px_4px_0px_rgba(0,0,0,1)]">
@@ -252,7 +252,7 @@ export default function LandingPage(): React.ReactElement {
                 <li>Priority Support & Analytics</li>
               </ul>
               <Link to="/login">
-                <button type="button" className="w-full border-2 border-white bg-white px-8 py-4 font-bold text-black transition-all hover:bg-transparent hover:text-white" style={{ filter: "url(#rough-paper)" }}>
+                <button type="button" className="w-full border-2 border-white bg-white px-8 py-4 font-bold text-black transition-all hover:border-[#FFD43B] hover:bg-[#FFD43B] hover:text-black" style={{ filter: "url(#rough-paper)" }}>
                   Unlock Master Pro
                 </button>
               </Link>
@@ -264,7 +264,7 @@ export default function LandingPage(): React.ReactElement {
       {/* --- NEW SECTION: FAQ --- */}
       <section className="relative z-10 px-6 py-32">
         <div className="mx-auto max-w-3xl">
-          <h2 className="mb-16 text-center text-4xl font-bold">Quiz Master <Highlight color="#fed7aa">FAQ.</Highlight></h2>
+          <h2 className="mb-16 text-center text-4xl font-bold">Quiz Master <Highlight color="#FFD43B">FAQ.</Highlight></h2>
 
           <div className="space-y-6">
             {[

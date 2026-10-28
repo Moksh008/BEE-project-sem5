@@ -1,5 +1,4 @@
-import dotenv from 'dotenv';
-dotenv.config();
+import 'dotenv/config';
 
 import express, { Request, Response } from 'express';
 import cors from 'cors';
@@ -14,7 +13,7 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Initialize Database & Firebase Services
-connectDB();
+const dbConnected = await connectDB();
 initFirebase();
 
 // Middlewares
@@ -39,4 +38,5 @@ app.get('/api/health', (_req: Request, res: Response) => {
 
 app.listen(PORT, () => {
   console.log(`🚀 QuizMaster Backend running on http://localhost:${PORT}`);
+  console.log(`🗄️  Database: ${dbConnected ? 'MongoDB Atlas (connected)' : 'In-Memory fallback'}`);
 });
