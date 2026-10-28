@@ -3,7 +3,7 @@
 An interactive, modern, full-stack ready Quiz Platform designed for taking subject-specific quizzes, tracking performance analytics, and managing user sessions. Built with **React 18 (TypeScript)**, **Vite**, **Tailwind CSS**, and **Node.js / Express (TypeScript)**.
 
 ---
-
+ 
 ## 🚀 Features
 
 - 🎨 **Modern & Responsive UI**: Sleek dark mode styling with interactive 3D/canvas visual effects, micro-animations, and full mobile/desktop responsiveness.
