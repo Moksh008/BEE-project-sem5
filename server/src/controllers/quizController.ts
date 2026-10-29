@@ -21,25 +21,53 @@ export async function getQuestions(req: Request, res: Response): Promise<void> {
     const difficulty = ((req.query.difficulty as string) || 'medium').toLowerCase();
     const count = parseInt((req.query.count as string) || '10', 10);
 
+    // 2. Attempt MongoDB Atlas Query — a random sample keeps every attempt different,
+    // and the result is de-duplicated so the same quiz never repeats a question.
     let questions: any[] = [];
-
-    // 2. Attempt MongoDB Atlas Query
     try {
-      questions = await Question.find({ category, difficulty } as any).limit(count).lean();
+      questions = await Question.aggregate([
+        { $match: { category, difficulty } },
+        { $sample: { size: count } },
+      ]);
     } catch {
-      questions = [];
+      try {
+        questions = await Question.find({ category, difficulty } as any).limit(count).lean();
+      } catch {
+        questions = [];
+      }
     }
 
-    // 3. In-Memory Fallback if MongoDB is unreachable or empty
-    if (questions.length === 0) {
-      const filtered = seedQuestions.filter(
-        (q) => q.category === category || category === 'general' || category === 'bee'
-      );
-      const fallbackList = filtered.length > 0 ? filtered : seedQuestions;
+    const uniqueByText = (list: any[]) => {
+      const seen = new Set<string>();
+      return list.filter((q: any) => {
+        const key = String(q.question || '').trim().toLowerCase();
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    };
 
-      const result = Array.from({ length: count }, (_, i) => {
-        const item = fallbackList[i % fallbackList.length];
-        return {
+    questions = uniqueByText(questions);
+
+    // 3. Curated fallback restricted to this exact category, so a topic never borrows
+    // another subject's questions.
+    const curatedForCategory = seedQuestions.filter((q) => q.category === category);
+
+    if (questions.length === 0) {
+      const ordered = [
+        ...curatedForCategory.filter((q) => q.difficulty === difficulty),
+        ...curatedForCategory.filter((q) => q.difficulty !== difficulty),
+      ];
+
+      if (ordered.length === 0) {
+        // Unknown topic with nothing stored yet: the client requests AI-written questions for it.
+        res.json({ source: 'none', questions: [] });
+        return;
+      }
+
+      res.json({
+        source: 'curated-fallback',
+        questions: ordered.slice(0, count).map((item, i) => ({
           id: `q-${i + 1}`,
           category: item.category,
           difficulty: item.difficulty,
@@ -48,49 +76,26 @@ export async function getQuestions(req: Request, res: Response): Promise<void> {
           incorrectAnswers: item.incorrectAnswers,
           explanation: item.explanation,
           source: item.source,
-        };
+        })),
       });
-
-      res.json({ source: 'curated-fallback', questions: result });
       return;
     }
 
-    // 3b. Top-up: the database holds fewer matching questions than requested,
-    // so cycle through the curated bank until the quiz has `count` questions.
-    // Also re-sync any new questions the backend admin re-inserts while a quiz is open.
-    if (process.env.SEED_QUESTIONS === 'sync') {
-      try {
-        const fresh = await Question.find({ category, difficulty } as any).limit(count).lean();
-        if (fresh.length > questions.length) {
-          const seen = new Set(questions.map((q: any) => String(q.question)));
-          for (const item of fresh) {
-            if (questions.length >= count) break;
-            if (!seen.has(String(item.question))) {
-              questions.push(item);
-              seen.add(String(item.question));
-            }
-          }
-        }
-      } catch {
-        // Ignore sync errors so the quiz never breaks.
-      }
-    }
+    // 3b. On-topic top-up from the curated bank: same category only and never duplicated.
     if (questions.length < count) {
-      const seen = new Set(questions.map((q: any) => String(q.question)));
-      const sameDifficulty = seedQuestions.filter(
-        (q) => q.category === category && q.difficulty === difficulty && !seen.has(q.question)
-      );
-      const otherDifficulty = seedQuestions.filter(
-        (q) => q.category === category && q.difficulty !== difficulty && !seen.has(q.question)
-      );
-      const filler = [...sameDifficulty, ...otherDifficulty];
-      const pool = filler.length > 0 ? filler : seedQuestions;
+      const seen = new Set(questions.map((q: any) => String(q.question).trim().toLowerCase()));
+      const filler = [
+        ...curatedForCategory.filter(
+          (q) => q.difficulty === difficulty && !seen.has(q.question.trim().toLowerCase())
+        ),
+        ...curatedForCategory.filter(
+          (q) => q.difficulty !== difficulty && !seen.has(q.question.trim().toLowerCase())
+        ),
+      ];
 
-      let i = 0;
-      while (questions.length < count) {
-        const item = pool[i % pool.length];
-        questions.push({ id: `seed-${questions.length + 1}`, ...item });
-        i += 1;
+      for (const item of filler) {
+        if (questions.length >= count) break;
+        questions.push({ id: `seed-${item.category}-${questions.length + 1}`, ...item });
       }
     }
 

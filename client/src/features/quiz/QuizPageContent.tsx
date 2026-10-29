@@ -200,64 +200,58 @@ export interface CustomQuestion {
 }
 
 /**
- * Asynchronous Data Fetching Function: Retrieves questions from backend API or fallbacks to seed questions.
+ * Utility Function: Converts the raw API question payload into internal Question objects.
+ */
+function toQuestions(rawQuestions: any[]): Question[] {
+  return rawQuestions.map((q: any, idx: number) => {
+    const correctAnswer = decodeHtml(q.correctAnswer || q.correct_answer || '');
+    const incorrect = (q.incorrectAnswers || q.incorrect_answers || []).map((a: string) => decodeHtml(a));
+    const opts = shuffleOptions([correctAnswer, ...incorrect].filter((v, i, a) => v && a.indexOf(v) === i));
+    return {
+      id: q.id || `q-${idx}`,
+      text: decodeHtml(q.question),
+      correctAnswer,
+      options: q.options ? q.options.map((o: string) => decodeHtml(o)) : opts,
+      explanation: q.explanation ? decodeHtml(q.explanation) : undefined
+    };
+  });
+}
+
+/**
+ * Utility Function: Removes duplicate questions (same wording) so a single quiz never repeats one.
+ */
+function dedupeQuestions(list: Question[]): Question[] {
+  const seen = new Set<string>();
+  return list.filter((q) => {
+    const key = q.text.trim().toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+/**
+ * Asynchronous Data Fetching Function: Retrieves curated questions for the exact topic bucket only.
  * Custom topics are mapped to their own `topic/<slug>` bucket so every subject has its own queue.
  */
 async function fetchQuestions(category: string, difficulty: string, amount: number): Promise<Question[]> {
+  // Custom domain: map to a topic bucket so nothing collides with bee/cs/web/general.
+  const bucket = isKnownDomain(category) ? (category as CustomDomain) : `topic/${category.toLowerCase()}`;
+
   try {
-    const res = await fetch(`/api/quizzes/questions?category=${category}&difficulty=${difficulty}&count=${amount}`);
+    const res = await fetch(`/api/quizzes/questions?category=${encodeURIComponent(bucket)}&difficulty=${difficulty}&count=${amount}`);
     if (res.ok) {
       const data = await res.json();
-      if (data.questions && data.questions.length > 0) {
-        return data.questions.map((q: any, idx: number) => {
-          const opts = q.options || shuffleOptions([q.correctAnswer, ...(q.incorrectAnswers || [])]);
-          return {
-            id: q.id || `q-${idx}`,
-            text: decodeHtml(q.question),
-            correctAnswer: decodeHtml(q.correctAnswer),
-            options: opts.map((o: string) => decodeHtml(o)),
-            explanation: q.explanation ? decodeHtml(q.explanation) : undefined
-          };
-        });
+      if (Array.isArray(data.questions) && data.questions.length > 0) {
+        return dedupeQuestions(toQuestions(data.questions)).slice(0, amount);
       }
     }
   } catch {
-    // Backend API offline, fallback to local dataset
-  }
-
-  // Custom domain: map to a topic bucket so nothing collides with bee/cs/web/general.
-  const topicBucket = isKnownDomain(category) ? (category as CustomDomain) : `topic/${category}`;
-  try {
-    // Custom topics read from their own MongoDB bucket first (real user topics), then build from it.
-    const topicRes = await fetch(`/api/quizzes/questions?category=${topicBucket}&difficulty=${difficulty}&count=${amount}`);
-    if (topicRes.ok) {
-      const data = await topicRes.json();
-      if (data.questions && data.questions.length > 0) {
-        return data.questions.map((q: any, idx: number) => {
-          const opts = q.options || shuffleOptions([q.correctAnswer, ...(q.incorrectAnswers || [])]);
-          return {
-            id: q.id || `q-${idx}`,
-            text: decodeHtml(q.question),
-            correctAnswer: decodeHtml(q.correctAnswer),
-            options: opts.map((o: string) => decodeHtml(o)),
-            explanation: q.explanation ? decodeHtml(q.explanation) : undefined
-          };
-        });
-      }
-    }
-  } catch {
-    // Topic bucket offline: fall through to the legacy engine below.
+    // Backend API offline, fall through to the local dataset below.
   }
 
   if (category === 'bee') {
-    return Array.from({ length: amount }, (_, idx) => {
-      const base = seedBEEQuestions[idx % seedBEEQuestions.length];
-      return {
-        ...base,
-        id: `bee-gen-${idx}`,
-        options: shuffleOptions(base.options)
-      };
-    });
+    return dedupeQuestions(seedBEEQuestions.slice(0, amount));
   }
 
   // OpenTDB Fallback for General Knowledge/Science/Tech
@@ -269,26 +263,44 @@ async function fetchQuestions(category: string, difficulty: string, amount: numb
     if (response.ok) {
       const data = (await response.json()) as { results?: RawQuestion[] };
       if (data.results && data.results.length > 0) {
-        return data.results.map((q, idx) => {
-          const correctAnswer = decodeHtml(q.correct_answer);
-          const options = shuffleOptions([
-            ...q.incorrect_answers.map((a) => decodeHtml(a)),
-            correctAnswer
-          ]);
-          return {
-            id: `opentdb-${idx}`,
-            text: decodeHtml(q.question),
-            correctAnswer,
-            options
-          };
-        });
+        return dedupeQuestions(toQuestions(data.results)).slice(0, amount);
       }
     }
   } catch {
     // fallback
   }
 
-  return seedBEEQuestions.slice(0, amount);
+  return [];
+}
+
+/**
+ * Asynchronous Data Fetching Function: Asks the AI generator for fresh, topic-specific questions.
+ * Every returned set is written for the supplied topic only, so a quiz never drifts off-topic.
+ */
+async function fetchTopicQuestions(topic: string, difficulty: string, amount: number): Promise<Question[]> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+  try {
+    const res = await fetch('/api/ai/generate-quiz', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ topic, difficulty, count: amount, topicOnly: true }),
+      signal: controller.signal
+    });
+
+    if (!res.ok) return [];
+
+    const data = await res.json();
+    // Only trust real AI output; the local template parser is not topic-accurate.
+    if (data.source !== 'groq-ai' || !Array.isArray(data.questions)) return [];
+
+    return dedupeQuestions(toQuestions(data.questions)).filter((q) => q.options.length >= 2);
+  } catch {
+    return [];
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 /**
@@ -303,12 +315,15 @@ export default function QuizPageContent(): React.ReactElement {
   const [quizMode, setQuizMode] = useState<'standard' | 'ai'>('standard');
   const [playerName, setPlayerName] = useState(user?.username || 'Scholar');
   const [category, setCategory] = useState('bee');
+  const [customTopic, setCustomTopic] = useState('');
+  const [activeTopic, setActiveTopic] = useState('');
   const [difficulty, setDifficulty] = useState('medium');
   const [questionCount, setQuestionCount] = useState<number | string>(5);
 
   // State for AI Generator
   const [notesText, setNotesText] = useState('');
-  const [aiTopic, setAiTopic] = useState('Basic Electrical Engineering');
+  const [aiTopic, setAiTopic] = useState('');
+  const [aiError, setAiError] = useState('');
 
   // State for Active Quiz Gameplay
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -320,6 +335,7 @@ export default function QuizPageContent(): React.ReactElement {
   const [isQuizActive, setIsQuizActive] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [startError, setStartError] = useState('');
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
 
   // Effect Hook: Initialize leaderboard from localStorage on initial render
@@ -337,16 +353,6 @@ export default function QuizPageContent(): React.ReactElement {
 
     return () => clearInterval(timerId); // Cleanup interval on unmount or pause
   }, [isQuizActive]);
-
-  // Sticky in-memory question bank for custom topics: hits MongoDB first,
-  // then falls back to the built-in `seedBEEQuestions` dataset, then the OpenTDB API.
-  const topicQuestionBank = useMemo(() => {
-    const bucket: Question[] = [];
-    if (isKnownDomain(category) && category !== 'general') {
-      bucket.push(...seedBEEQuestions);
-    }
-    return bucket;
-  }, [category]);
 
   const currentQuestion = questions[currentIndex];
 
@@ -409,29 +415,47 @@ export default function QuizPageContent(): React.ReactElement {
     const safeAmount = Math.min(Math.max(Number(questionCount) || 5, 3), 20);
     const safeName = playerName.trim() || 'Scholar';
 
-    // Sticky bank is the curated dataset itself: custom topics reuse it as a fallback question pool.
-    const pool = topicQuestionBank.length > 0 ? topicQuestionBank : seedBEEQuestions;
-    const bankCount = Math.min(pool.length, safeAmount);
-    const bankQuestions = pool.slice(0, bankCount).map((q, idx) => ({
-      ...q,
-      id: `topic-${category}-${idx}`,
-      options: shuffleOptions([...q.options, q.correctAnswer].filter((v, i, a) => a.indexOf(v) === i))
-    }));
+    // A typed topic always wins over the preset cards, so the quiz follows what the player asked for.
+    const ownTopic = customTopic.trim();
+    const activeCategory = ownTopic || category;
+    const topicLabel = ownTopic || categoryOptions.find((c) => c.id === category)?.label || category;
 
-    const allocatedTime = Math.max(60, safeAmount * 25);
+    setStartError('');
 
-    const api = await fetchQuestions(category, difficulty, safeAmount);
-    const poolToUse = bankQuestions.length > 0 ? bankQuestions : api;
-    setQuestions(poolToUse.slice(0, safeAmount));
-    setCurrentIndex(0);
-    setSelectedAnswers({});
-    setFlaggedQuestions({});
-    setTimeLeft(allocatedTime);
-    setInitialTime(allocatedTime);
-    setIsQuizActive(true);
-    setHasStarted(true);
-    setPlayerName(safeName);
-    setIsLoading(false);
+    try {
+      // 1. Curated / previously generated questions that belong to this exact topic bucket.
+      const curated = await fetchQuestions(activeCategory, difficulty, safeAmount);
+
+      // 2. Top up with freshly generated questions written strictly for this topic.
+      const generated = await fetchTopicQuestions(topicLabel, difficulty, safeAmount);
+
+      const merged = dedupeQuestions([...curated, ...generated]);
+      const onTopic = merged.length > 0 ? merged : activeCategory === 'bee' ? seedBEEQuestions : [];
+      // Shuffle first so every attempt draws a different mix of the same topic.
+      const finalQuestions = [...onTopic].sort(() => Math.random() - 0.5).slice(0, safeAmount);
+
+      if (finalQuestions.length === 0) {
+        setStartError('Could not get questions for this topic right now. Please try again.');
+        return;
+      }
+
+      const allocatedTime = Math.max(60, finalQuestions.length * 25);
+
+      setQuestions(finalQuestions);
+      setCurrentIndex(0);
+      setSelectedAnswers({});
+      setFlaggedQuestions({});
+      setTimeLeft(allocatedTime);
+      setInitialTime(allocatedTime);
+      setIsQuizActive(true);
+      setHasStarted(true);
+      setPlayerName(safeName);
+      setActiveTopic(activeCategory);
+    } catch {
+      setStartError('Could not start the quiz. Please check your connection and try again.');
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   /**
@@ -440,68 +464,84 @@ export default function QuizPageContent(): React.ReactElement {
    */
   async function handleGenerateAiQuiz(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!notesText.trim()) return;
+    if (!notesText.trim()) {
+      setAiError('Paste your syllabus or lecture notes first.');
+      return;
+    }
 
     setIsLoading(true);
+    setAiError('');
     const safeAmount = Math.min(Math.max(Number(questionCount) || 5, 3), 10);
     const safeName = playerName.trim() || 'Scholar';
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
 
     try {
       const response = await fetch('/api/ai/generate-quiz', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          notesText,
-          topic: aiTopic || 'Academic Notes',
+          notesText: notesText.trim(),
+          topic: aiTopic.trim() || 'Academic Notes',
           count: safeAmount,
           difficulty
-        })
+        }),
+        signal: controller.signal
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.questions && data.questions.length > 0) {
-          const formatted: Question[] = data.questions.map((q: any, idx: number) => {
-            const opts = shuffleOptions([q.correctAnswer, ...(q.incorrectAnswers || [])]);
-            return {
-              id: `ai-${idx}`,
-              text: decodeHtml(q.question),
-              correctAnswer: decodeHtml(q.correctAnswer),
-              options: opts.map((o: string) => decodeHtml(o)),
-              explanation: q.explanation ? decodeHtml(q.explanation) : `Derived from AI study notes`
-            };
-          });
+      const data = await response.json().catch(() => null);
 
-          const allocatedTime = Math.max(60, formatted.length * 30);
-          setQuestions(formatted);
-          setCurrentIndex(0);
-          setSelectedAnswers({});
-          setFlaggedQuestions({});
-          setTimeLeft(allocatedTime);
-          setInitialTime(allocatedTime);
-          setIsQuizActive(true);
-          setHasStarted(true);
-          setPlayerName(safeName);
-          setIsLoading(false);
-          return;
-        }
+      // Only real AI output is accepted: it has been written from the pasted notes.
+      // Anything else (offline, AI outage) is surfaced as an error, never replaced with
+      // unrelated built-in questions.
+      if (!response.ok || !data || !Array.isArray(data.questions) || data.questions.length === 0) {
+        setAiError(
+          data?.error ||
+            'The AI could not build a quiz from these notes. Please try again in a moment.'
+        );
+        return;
       }
+
+      const formatted = dedupeQuestions(
+        data.questions.map((q: any, idx: number) => {
+          const opts = shuffleOptions([q.correctAnswer, ...(q.incorrectAnswers || [])]);
+          return {
+            id: `ai-${idx}`,
+            text: decodeHtml(q.question),
+            correctAnswer: decodeHtml(q.correctAnswer),
+            options: opts.map((o: string) => decodeHtml(o)),
+            explanation: q.explanation ? decodeHtml(q.explanation) : `Derived from AI study notes`
+          };
+        })
+      ).filter((q) => q.options.length >= 2);
+
+      if (formatted.length === 0) {
+        setAiError('The AI response was unusable. Please try generating again.');
+        return;
+      }
+
+      const allocatedTime = Math.max(60, formatted.length * 30);
+      setQuestions(formatted);
+      setCurrentIndex(0);
+      setSelectedAnswers({});
+      setFlaggedQuestions({});
+      setTimeLeft(allocatedTime);
+      setInitialTime(allocatedTime);
+      setIsQuizActive(true);
+      setHasStarted(true);
+      setPlayerName(safeName);
+      setActiveTopic(`ai:${aiTopic.trim() || 'Academic Notes'}`);
     } catch (error) {
       console.error('Error generating AI quiz:', error);
+      setAiError(
+        (error as Error)?.name === 'AbortError'
+          ? 'The AI took too long to respond. Please try again.'
+          : 'Could not reach the quiz server. Is the backend running?'
+      );
+    } finally {
+      clearTimeout(timeoutId);
+      setIsLoading(false);
     }
-
-    // Fallback to BEE questions if API offline
-    const fallback = seedBEEQuestions.slice(0, safeAmount);
-    setQuestions(fallback);
-    setCurrentIndex(0);
-    setSelectedAnswers({});
-    setFlaggedQuestions({});
-    setTimeLeft(120);
-    setInitialTime(120);
-    setIsQuizActive(true);
-    setHasStarted(true);
-    setPlayerName(safeName);
-    setIsLoading(false);
   }
 
   /**
@@ -523,10 +563,12 @@ export default function QuizPageContent(): React.ReactElement {
       total,
       percentage,
       category: quizMode === 'ai'
-        ? `AI: ${aiTopic}`
-        : isKnownDomain(category)
-          ? categoryOptions.find((c) => c.id === category)?.label || category
-          : category,
+        ? `AI: ${aiTopic.trim() || 'Academic Notes'}`
+        : customTopic.trim()
+          ? customTopic.trim()
+          : isKnownDomain(category)
+            ? categoryOptions.find((c) => c.id === category)?.label || category
+            : category,
       date: new Date().toLocaleDateString()
     };
 
@@ -549,8 +591,8 @@ export default function QuizPageContent(): React.ReactElement {
         body: JSON.stringify({
           username: playerName,
           category: quizMode === 'ai'
-            ? `AI: ${aiTopic}`
-            : category,
+            ? `AI: ${aiTopic.trim() || 'Academic Notes'}`
+            : customTopic.trim() || category,
           difficulty,
           score,
           totalQuestions: total,
@@ -621,7 +663,7 @@ export default function QuizPageContent(): React.ReactElement {
                       quizMode === 'ai' ? 'bg-purple-300 scale-105 ring-2 ring-purple-600' : 'bg-white hover:bg-purple-50'
                     }`}
                   >
-                    <Sparkles size={16} className="text-purple-700" /> AI Notes-to-Quiz (Groq Llama 3.3)
+                    <Sparkles size={16} className="text-purple-700" /> AI Notes-to-Quiz (Groq)
                   </button>
                 </div>
 
@@ -653,7 +695,10 @@ export default function QuizPageContent(): React.ReactElement {
                           return (
                             <div
                               key={cat.id}
-                              onClick={() => setCategory(cat.id)}
+                              onClick={() => {
+                                setCategory(cat.id);
+                                setCustomTopic('');
+                              }}
                               className={`cursor-pointer p-4 border-[3px] border-black font-bold shape-wobble-sm transition-all flex items-center gap-3 shadow-[2px_2px_0px_#000] ${
                                 isSelected ? 'bg-amber-300 ring-2 ring-black scale-[1.02]' : 'bg-white hover:bg-zinc-50'
                               }`}
@@ -665,6 +710,25 @@ export default function QuizPageContent(): React.ReactElement {
                             </div>
                           );
                         })}
+                      </div>
+
+                      <div className="mt-4">
+                        <label className="block font-black text-xs uppercase tracking-wider mb-2 text-black/70">
+                          Or type your own topic
+                        </label>
+                        <input
+                          type="text"
+                          maxLength={60}
+                          value={customTopic}
+                          onChange={(e) => setCustomTopic(e.target.value)}
+                          className="w-full px-4 py-3 bg-white border-[3px] border-black font-bold shadow-[2px_2px_0px_#000] shape-wobble-sm focus:outline-none focus:ring-2 focus:ring-black"
+                          placeholder="e.g. Digital Signal Processing"
+                        />
+                        {customTopic.trim() && (
+                          <p className="font-sketch text-sm text-black/70 mt-2">
+                            Questions will be generated for &ldquo;{customTopic.trim()}&rdquo;
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -705,6 +769,7 @@ export default function QuizPageContent(): React.ReactElement {
                         Estimated Duration: ~{Math.max(1, Math.round((Number(questionCount) * 25) / 60))} Mins
                       </span>
                       <SketchButton
+                        type="submit"
                         variant="primary"
                         icon={Play}
                         className="text-lg py-3 px-8"
@@ -712,6 +777,10 @@ export default function QuizPageContent(): React.ReactElement {
                         {isLoading ? 'Loading Questions...' : 'Start Quiz Now'}
                       </SketchButton>
                     </div>
+
+                    {startError && (
+                      <p className="font-sketch text-sm font-bold text-red-700">{startError}</p>
+                    )}
                   </form>
                 ) : (
                   /* AI Note-to-Quiz Form */
@@ -719,9 +788,9 @@ export default function QuizPageContent(): React.ReactElement {
                     <div className="p-4 bg-purple-200 border-[2px] border-black shape-wobble-sm flex items-center gap-3">
                       <Cpu className="w-8 h-8 text-purple-900 shrink-0" />
                       <div>
-                        <h3 className="font-black text-base">Groq Cloud Llama 3.3 70B AI Generator</h3>
+                        <h3 className="font-black text-base">Groq Cloud AI Generator</h3>
                         <p className="font-sketch text-sm text-purple-950">
-                          Paste your lecture notes, syllabus, or course textbook text below to generate a custom quiz!
+                          Paste your lecture notes, syllabus, or course textbook text below. The AI reads it and builds the questions only from that material.
                         </p>
                       </div>
                     </div>
@@ -735,8 +804,7 @@ export default function QuizPageContent(): React.ReactElement {
                         value={aiTopic}
                         onChange={(e) => setAiTopic(e.target.value)}
                         className="w-full px-4 py-3 bg-white border-[3px] border-black font-bold shadow-[2px_2px_0px_#000] shape-wobble-sm focus:outline-none"
-                        placeholder="e.g. Basic Electrical Engineering"
-                        required
+                        placeholder="e.g. JavaScript & Node.js (optional)"
                       />
                     </div>
 
@@ -788,16 +856,21 @@ export default function QuizPageContent(): React.ReactElement {
 
                     <div className="pt-4 flex items-center justify-between border-t-[2px] border-black">
                       <span className="font-sketch text-base font-bold text-purple-900">
-                        ✨ Powered by Groq Llama 3.3 70B AI
+                        ✨ Groq AI builds these questions from your notes
                       </span>
                       <SketchButton
+                        type="submit"
                         variant="accent"
                         icon={Sparkles}
                         className="text-lg py-3 px-8 bg-purple-400 hover:bg-purple-500 text-black"
                       >
-                        {isLoading ? 'Generating AI Quiz...' : 'Generate AI Quiz Now'}
+                        {isLoading ? 'Analyzing notes...' : 'Generate AI Quiz Now'}
                       </SketchButton>
                     </div>
+
+                    {aiError && (
+                      <p className="font-sketch text-sm font-bold text-red-700">{aiError}</p>
+                    )}
                   </form>
                 )}
               </PopCard>
@@ -864,7 +937,7 @@ export default function QuizPageContent(): React.ReactElement {
                   Q {currentIndex + 1} / {questions.length}
                 </span>
                 <span className="font-sketch font-bold text-base text-zinc-600">
-                  Subject: <span className="uppercase text-black">{quizMode === 'ai' ? aiTopic : category}</span>
+                  Subject: <span className="uppercase text-black">{quizMode === 'ai' ? aiTopic.trim() || 'AI Notes Quiz' : activeTopic || category}</span>
                 </span>
               </div>
 

@@ -2,56 +2,56 @@ import { Request, Response } from 'express';
 import { saveGeneratedQuestions } from '../config/seed.js';
 
 /**
- * Helper Function: Extracts key academic sentences and keywords from raw notes/syllabus text.
- * Concepts Used:
- * - String Manipulation: `.split()`, `.trim()`, `.replace()`, Regex Lookbehind `(?<=[.!?])`
- * - Array Higher-Order Functions: `.map()`, `.filter()`
- * - ES6 Data Structures: `Set` for stopword filtering & duplicate removal (`Set` -> `Array.from`)
- * 
- * @param text - Raw lecture notes or syllabus input text.
- * @returns Object containing filtered sentences array and unique keywords array.
+ * Helper Function: Removes markdown code fences some models wrap around JSON.
  */
-function extractKeyConcepts(text: string): { sentences: string[]; keywords: string[] } {
-  // Split raw text into sentences using punctuation regex
-  const rawSentences = text
-    .split(/(?<=[.!?])\s+|\n+/)
-    .map((s) => s.trim())
-    .filter((s) => s.length > 10);
+function stripCodeFences(text: string): string {
+  return text.replace(/^\s*```(?:json)?/i, '').replace(/```\s*$/, '').trim();
+}
 
-  let sentences = rawSentences;
-  if (sentences.length < 3) {
-    sentences = text
-      .split(/[,;\n]+/)
-      .map((s) => s.trim())
-      .filter((s) => s.length > 10);
+/**
+ * Helper Function: Validates and normalises the question objects returned by the LLM.
+ * Drops malformed entries and duplicate questions so a quiz never repeats itself.
+ */
+function sanitizeQuestions(raw: unknown, count: number): any[] {
+  if (!Array.isArray(raw)) return [];
+
+  const seen = new Set<string>();
+  const cleaned: any[] = [];
+
+  for (const item of raw) {
+    const question = typeof item?.question === 'string' ? item.question.trim() : '';
+    const correctAnswer = typeof item?.correctAnswer === 'string' ? item.correctAnswer.trim() : '';
+    const distractors = Array.isArray(item?.incorrectAnswers)
+      ? Array.from(
+          new Set(
+            item.incorrectAnswers
+              .filter((a: unknown): a is string => typeof a === 'string')
+              .map((a: string) => a.trim())
+              .filter((a: string) => a.length > 0 && a.toLowerCase() !== correctAnswer.toLowerCase())
+          )
+        )
+      : [];
+
+    if (!question || !correctAnswer || distractors.length < 2) continue;
+
+    const key = question.toLowerCase().replace(/\s+/g, ' ');
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    cleaned.push({
+      question,
+      correctAnswer,
+      incorrectAnswers: distractors.slice(0, 3),
+      explanation:
+        typeof item?.explanation === 'string' && item.explanation.trim().length > 0
+          ? item.explanation.trim()
+          : undefined,
+    });
+
+    if (cleaned.length >= count) break;
   }
 
-  if (sentences.length === 0) {
-    sentences = [text.trim() || 'Core Academic Principle'];
-  }
-
-  // Common English stop words to filter out non-essential vocabulary
-  const stopwords = new Set([
-    'about', 'above', 'after', 'again', 'against', 'all', 'also', 'and', 'any', 'are', 'because',
-    'been', 'before', 'being', 'below', 'between', 'both', 'but', 'by', 'can', 'could', 'did',
-    'does', 'doing', 'down', 'during', 'each', 'few', 'for', 'from', 'further', 'had', 'has',
-    'have', 'having', 'her', 'here', 'hers', 'herself', 'him', 'himself', 'his', 'how', 'into',
-    'its', 'itself', 'just', 'more', 'most', 'other', 'our', 'ours', 'shall', 'should', 'some',
-    'such', 'than', 'that', 'the', 'their', 'theirs', 'them', 'themselves', 'then', 'there',
-    'these', 'they', 'this', 'those', 'through', 'under', 'until', 'very', 'was', 'were',
-    'what', 'when', 'where', 'which', 'while', 'who', 'whom', 'why', 'with', 'would', 'your'
-  ]);
-
-  // Extract meaningful non-stopword tokens using regular expressions
-  const allWords = text
-    .replace(/[^\w\s]/gi, '')
-    .split(/\s+/)
-    .filter((w) => w.length > 3 && !stopwords.has(w.toLowerCase()));
-
-  // Deduplicate keywords using ES6 Set
-  const uniqueKeywords = Array.from(new Set(allWords));
-
-  return { sentences, keywords: uniqueKeywords };
+  return cleaned;
 }
 
 /**
@@ -68,49 +68,102 @@ function extractKeyConcepts(text: string): { sentences: string[]; keywords: stri
 export async function generateQuizFromNotes(req: Request, res: Response): Promise<void> {
   try {
     // 1. Destructure user parameters from HTTP request body
-    const { notesText, topic = 'General Academic', count = 5, difficulty = 'medium' } = req.body;
+    const { notesText, topic = 'General Academic', count = 5, difficulty = 'medium', topicOnly = false } = req.body;
 
-    // 2. Input Validation (Guard Clause)
-    if (!notesText || typeof notesText !== 'string' || notesText.trim().length === 0) {
+    const safeNotes = typeof notesText === 'string' ? notesText.trim() : '';
+    const safeTopic = typeof topic === 'string' ? topic.trim() : '';
+
+    // 2. Input Validation (Guard Clause) — a topic-only request is valid when the player typed a subject.
+    if (!safeNotes && !(topicOnly && safeTopic)) {
       res.status(400).json({ error: 'Please provide notesText (lecture notes, syllabus, or topic text).' });
       return;
     }
 
-    const requestedCount = Math.min(Math.max(Number(count) || 5, 3), 10);
+    const maxCount = topicOnly ? 20 : 10;
+    const requestedCount = Math.min(Math.max(Number(count) || 5, 3), maxCount);
     const apiKey = process.env.GROQ_API_KEY;
+
+    // Custom topics live in their own `topic/<name>` bucket, matching the client's lookup key.
+    // Notes-based sets get a `notes/...` bucket so they never leak into an unrelated quiz bank
+    // such as `general`, `bee` or `cs`.
+    const saveCategory = topicOnly
+      ? `topic/${safeTopic.toLowerCase()}`
+      : `notes/${(safeTopic || 'syllabus').toLowerCase().slice(0, 40)}`;
 
     // 3. Groq Cloud AI Generator Integration
     if (apiKey && apiKey.startsWith('gsk_')) {
-      const prompt = `
-You are an expert academic professor and quiz creator.
-Analyze the following lecture notes / syllabus content and generate exactly ${requestedCount} UNIQUE, NON-REPEATING multiple-choice questions for difficulty "${difficulty}".
-Ensure each question tests a DIFFERENT concept, definition, or formula mentioned in the text.
+      // Notes-based requests must be answered from the pasted text only.
+      // Topic-only requests have no material, so they test standard coursework on the subject.
+      const notesPrompt = `
+You are an exam writer creating a multiple-choice quiz for a student.
 
-Syllabus / Lecture Notes:
+The student's course topic label is: "${safeTopic || 'Academic Notes'}".
+
+The ONLY source of truth is the study material below. Read it carefully and write questions from it.
+
+STUDY MATERIAL:
 """
-${notesText.substring(0, 4000)}
+${safeNotes.substring(0, 6000)}
 """
 
-Return ONLY a valid JSON object with a key "questions" containing an array of exactly ${requestedCount} question objects. Do NOT include markdown code fences or extra prose outside the JSON object.
-Follow this JSON schema strictly:
+HARD RULES:
+1. Every question must be answerable directly and only from the STUDY MATERIAL above.
+2. Use the exact terms, definitions, concepts, APIs, formulas and examples that appear in that material.
+3. If something is not in the material, do not ask about it. No outside facts, no other subjects.
+4. Write exactly ${requestedCount} UNIQUE questions, each testing a DIFFERENT concept from a different part of the material.
+5. Difficulty: "${difficulty}". Each question needs one correct answer and three plausible but clearly wrong distractors, all four similar in length and format.
+6. Do not number or prefix the questions, and do not repeat a question.
+
+Return ONLY a valid JSON object, no markdown fences and no prose, in exactly this schema:
 {
   "questions": [
     {
-      "question": "Clear, concise, unique question statement",
+      "question": "Clear question statement drawn from the study material",
       "correctAnswer": "The correct choice",
       "incorrectAnswers": ["Distinct wrong choice 1", "Distinct wrong choice 2", "Distinct wrong choice 3"],
-      "explanation": "Brief 1-sentence academic explanation of why the correct answer is right."
+      "explanation": "One sentence, quoting the exact part of the study material that supports the answer."
     }
   ]
 }
 `;
 
-      const groqModels = [
-        'llama-3.1-8b-instant',
-        'llama3-8b-8192',
-        'llama3-70b-8192',
-        'mixtral-8x7b-32768'
+      const topicPrompt = `
+You are an exam writer creating a multiple-choice quiz.
+The subject is exactly: "${safeTopic}".
+
+HARD RULES:
+1. Every question must test core concepts, definitions, formulas or applications of "${safeTopic}" only, answerable from standard coursework on that subject.
+2. Never write a question about a different subject.
+3. Write exactly ${requestedCount} UNIQUE questions, each testing a DIFFERENT concept.
+4. Difficulty: "${difficulty}". Each question needs one correct answer and three plausible but clearly wrong distractors.
+5. Do not number or prefix the questions, and do not repeat a question.
+
+Return ONLY a valid JSON object, no markdown fences and no prose, in exactly this schema:
+{
+  "questions": [
+    {
+      "question": "Clear question statement",
+      "correctAnswer": "The correct choice",
+      "incorrectAnswers": ["Distinct wrong choice 1", "Distinct wrong choice 2", "Distinct wrong choice 3"],
+      "explanation": "One sentence explaining why the correct answer is right."
+    }
+  ]
+}
+`;
+
+      const prompt = safeNotes ? notesPrompt : topicPrompt;
+
+      // GROQ_MODEL in .env lets the project pin whichever model the key owns.
+      const pinnedModel = (process.env.GROQ_MODEL || '').trim();
+      const supportedModels = [
+        'openai/gpt-oss-120b',
+        'openai/gpt-oss-20b',
+        'qwen/qwen3.8-27b',
+        'allam-2-7b'
       ];
+      const groqModels = pinnedModel
+        ? [pinnedModel, ...supportedModels.filter((m) => m !== pinnedModel)]
+        : supportedModels;
 
       // Iterative loop over supported Groq LLM model names (Loop + Async/Await)
       for (const modelName of groqModels) {
@@ -134,7 +187,8 @@ Follow this JSON schema strictly:
                 },
               ],
               response_format: { type: 'json_object' },
-              temperature: 0.5,
+              // Low temperature keeps the answers faithful to the pasted material.
+              temperature: safeNotes ? 0.2 : 0.5,
             }),
           });
 
@@ -143,17 +197,18 @@ Follow this JSON schema strictly:
             const content = groqData.choices?.[0]?.message?.content;
 
             if (content) {
-              const parsed = JSON.parse(content);
-              const questionsArray = parsed.questions || (Array.isArray(parsed) ? parsed : null);
+              const parsed = JSON.parse(stripCodeFences(content));
+              const rawQuestions = parsed.questions || (Array.isArray(parsed) ? parsed : null);
+              const questionsArray = sanitizeQuestions(rawQuestions, requestedCount);
 
-              if (Array.isArray(questionsArray) && questionsArray.length > 0) {
+              if (questionsArray.length > 0) {
                 console.log(`✅ Groq AI Quiz generated successfully using model: ${modelName}`);
                 // Persist the AI question set into MongoDB (fire-and-forget)
-                void saveGeneratedQuestions(questionsArray, topic, difficulty, 'ai');
+                void saveGeneratedQuestions(questionsArray, saveCategory, difficulty, 'ai');
                 res.json({
                   source: 'groq-ai',
                   model: modelName,
-                  topic,
+                  topic: safeTopic,
                   difficulty,
                   count: questionsArray.length,
                   questions: questionsArray,
@@ -171,72 +226,13 @@ Follow this JSON schema strictly:
       }
     }
 
-    // 4. --- Enhanced Multi-Concept Fallback Note Parser (Local JS Algorithm) ---
-    const { sentences, keywords } = extractKeyConcepts(notesText);
-
-    // Array of higher-order arrow function templates
-    const questionTemplates = [
-      (concept: string, top: string) => `According to your notes on ${top}, what is the primary principle regarding "${concept}"?`,
-      (concept: string, top: string) => `In the context of ${top}, which statement accurately describes "${concept}"?`,
-      (concept: string, top: string) => `Regarding "${concept}" in your uploaded notes, which of the following is correct?`,
-      (concept: string, top: string) => `What key role or significance does "${concept}" hold in ${top}?`,
-      (concept: string, top: string) => `Based on the syllabus text for ${top}, how is "${concept}" defined?`,
-    ];
-
-    // Generate non-repeating question objects using Array.from and Modulo Operator (%)
-    const generatedQuestions = Array.from({ length: requestedCount }, (_, i) => {
-      const currentSentence = sentences[i % sentences.length] || `Core concept ${i + 1} in ${topic}`;
-
-      let concept = keywords[i % keywords.length];
-      if (!concept || concept.length < 3) {
-        const sentenceWords = currentSentence.split(/\s+/).filter((w) => w.length > 3);
-        concept = sentenceWords[i % sentenceWords.length] || `Concept ${i + 1}`;
-      }
-
-      const formattedConcept = concept.charAt(0).toUpperCase() + concept.slice(1);
-      const templateFn = questionTemplates[i % questionTemplates.length];
-      const questionText = templateFn(formattedConcept, topic);
-
-      const correctAnswerText = currentSentence.length > 80
-        ? `${currentSentence.substring(0, 75)}...`
-        : currentSentence;
-
-      const otherSentences = sentences.filter((_, idx) => idx !== (i % sentences.length));
-
-      let incorrect1 = otherSentences[0]
-        ? (otherSentences[0].length > 70 ? `${otherSentences[0].substring(0, 65)}...` : otherSentences[0])
-        : `It reverses the phase angle of ${formattedConcept} by 180 degrees without load.`;
-
-      let incorrect2 = otherSentences[1]
-        ? (otherSentences[1].length > 70 ? `${otherSentences[1].substring(0, 65)}...` : otherSentences[1])
-        : `It reduces overall system efficiency of ${topic} to zero.`;
-
-      let incorrect3 = otherSentences[2]
-        ? (otherSentences[2].length > 70 ? `${otherSentences[2].substring(0, 65)}...` : otherSentences[2])
-        : `It is unrelated to electrical principles in ${topic}.`;
-
-      if (incorrect1 === correctAnswerText) incorrect1 = `It causes total reactive impedance in ${topic}.`;
-      if (incorrect2 === correctAnswerText || incorrect2 === incorrect1) incorrect2 = `It violates conservation of energy in ${formattedConcept}.`;
-      if (incorrect3 === correctAnswerText || incorrect3 === incorrect1 || incorrect3 === incorrect2) {
-        incorrect3 = `It applies only to DC steady-state circuits.`;
-      }
-
-      return {
-        question: questionText,
-        correctAnswer: correctAnswerText,
-        incorrectAnswers: [incorrect1, incorrect2, incorrect3],
-        explanation: `Derived from your syllabus note: "${currentSentence}"`,
-      };
-    });
-
-    // 5. Send JSON Response back to client (and keep the generated set in MongoDB)
-    void saveGeneratedQuestions(generatedQuestions, topic, difficulty, 'ai');
-    res.json({
-      source: 'groq-fallback',
-      topic,
-      difficulty,
-      count: generatedQuestions.length,
-      questions: generatedQuestions,
+    // 4. Every remaining path means the LLM produced nothing usable. Report that clearly
+    // instead of returning invented questions that do not match the student's notes.
+    res.status(503).json({
+      source: 'unavailable',
+      error: safeNotes
+        ? 'The AI could not build a quiz from these notes right now. Please try again in a moment.'
+        : 'AI question generation is unavailable right now.',
     });
   } catch (error) {
     console.error('Error generating quiz from Groq AI notes:', error);

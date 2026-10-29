@@ -18,11 +18,8 @@ import {
   Play,
   ChevronDown
 } from 'lucide-react';
-import {
-  HandDrawnFilters,
-  SketchButton,
-} from '../components/ui/HandDrawn';
-import { GlobalStyles, ChartPatterns, PopCard, teamMembers } from '../components/ui/PaperPop';
+import { HandDrawnFilters } from '../components/ui/HandDrawn';
+import { GlobalStyles, ChartPatterns, PopCard, SketchButton, teamMembers } from '../components/ui/PaperPop';
 
 /**
  * Vertical Landing Page Component.
